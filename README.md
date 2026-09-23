@@ -91,8 +91,6 @@ Invitar REMD: [Tu link de invitación aquí]
 Servidor de Soporte: https://discord.gg/gmr6CmEqQ
 TikTok: @Axel XIT🇧🇷
 
-╔════════╗
-║ DARK - Lleva tu servidor al siguiente nivel ║
-║ Desarrollado con ❤️ por Axel XIT ║
-║ Sigueme en TikTok @Axel XIT🇧🇷 ║
-╚════════╝
+DARK - Lleva tu servidor al siguiente nivel
+Desarrollado con ❤️ por Axel XIT 
+Sigueme en TikTok @Axel XIT🇧🇷
