@@ -1,7 +1,7 @@
 {
   "name": "dark-bio-ff-bot",
   "version": "1.0.0",
-  "description": "Bot público de Discord para DARK BIO FF",
+  "description": "Bot público de Discord estilo Neko sin música",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,7 +10,7 @@
     "node": ">=18.17.0"
   },
   "dependencies": {
-    "discord.js": "14.27.0",
-    "dotenv": "16.6.1"
+    "discord.js": "^14.27.0",
+    "dotenv": "^16.6.1"
   }
 }
