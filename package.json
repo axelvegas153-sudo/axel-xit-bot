@@ -1,18 +1,16 @@
-    {
-      "name": "dark-bot",
-      "version": "1.0.0",
-      "main": "index.js",
-      "scripts": {
-        "start": "node index.js"
-      },
-      "dependencies": {
-        "discord.js": "^14.15.3",
-        "dotenv": "^16.4.5",
-        "distube": "^4.1.3",
-        "@distube/spotify": "^1.1.2",
-        "@distube/yt-dlp": "^1.0.1"
-      },
-      "engines": {
-        "node": "18.x"
-      }
-    }
+{
+  "name": "dark-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "distube": "^4.1.3"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
