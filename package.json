@@ -1,7 +1,7 @@
 {
   "name": "axel-bot",
   "version": "1.0.0",
-  "description": "Axel BOT para Discord",
+  "description": "Bot público de Discord",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -11,11 +11,6 @@
   },
   "dependencies": {
     "discord.js": "14.27.0",
-    "distube": "5.2.3",
-    "@distube/spotify": "2.0.2",
-    "@distube/yt-dlp": "2.0.1",
-    "@discordjs/voice": "0.19.0",
-    "@discordjs/opus": "0.10.0",
-    "dotenv": "17.2.2"
+    "dotenv": "16.6.1"
   }
 }
