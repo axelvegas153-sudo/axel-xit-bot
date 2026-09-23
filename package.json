@@ -8,6 +8,11 @@
   },
   "dependencies": {
     "discord.js": "^14.15.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "@discordjs/voice": "^0.16.1",
+    "@discordjs/opus": "^0.9.0",
+    "distube": "^5.0.0",
+    "@distube/yt-dlp": "^1.0.0",
+    "@distube/spotify": "^1.0.0"
   }
 }
