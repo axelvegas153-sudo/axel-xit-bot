@@ -101,7 +101,7 @@ client.on('interactionCreate', async interaction => {
             const colorRandom = colores[Math.floor(Math.random() * colores.length)];
             const embed = new EmbedBuilder()
          .setColor(colorRandom)
-         .setTitle('📜 AXEL BOT - LISTA DE COMANDOS')
+         .setTitle('📜 Axel BOT - LISTA DE COMANDOS')
          .setDescription('Usa `/` para ver todos los comandos')
          .addFields(
                 {name: '👑 GENERALES', value: '`/axelavatar` `/servericono` `/axelserverinfo` `/axel8ball`', inline: false},
