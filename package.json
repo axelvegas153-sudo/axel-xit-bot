@@ -1,6 +1,7 @@
 {
-  "name": "dark-ff-v1",
+  "name": "dark-bio-ff-bot",
   "version": "1.0.0",
+  "description": "Bot público de Discord para DARK BIO FF",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,6 +11,6 @@
   },
   "dependencies": {
     "discord.js": "14.27.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "16.6.1"
   }
 }
