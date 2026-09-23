@@ -1,27 +1,25 @@
 require("dotenv").config();
 
-const fs = require("fs");
-const path = require("path");
-
 const {
   Client,
   GatewayIntentBits,
-  Collection,
   REST,
   Routes,
+  SlashCommandBuilder,
+  EmbedBuilder,
   Events
 } = require("discord.js");
 
-// ================================
+// ========================================
 // CONFIGURACIÓN
-// ================================
+// ========================================
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
-// ================================
+// ========================================
 // COMPROBAR VARIABLES
-// ================================
+// ========================================
 
 if (!TOKEN) {
   console.error("❌ Falta DISCORD_TOKEN en las variables de entorno.");
@@ -33,226 +31,182 @@ if (!CLIENT_ID) {
   process.exit(1);
 }
 
-// ================================
+// ========================================
 // CREAR CLIENTE
-// ================================
+// ========================================
 
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.Guilds
   ]
 });
 
-client.commands = new Collection();
+// ========================================
+// COMANDOS
+// ========================================
 
-const comandos = [];
+const commands = [
 
-// ================================
-// CARGAR COMANDOS
-// ================================
+  // /ping
+  new SlashCommandBuilder()
+    .setName("ping")
+    .setDescription("Comprueba si el bot está funcionando."),
 
-const carpetaComandos = path.join(__dirname, "comandos");
+  // /help
+  new SlashCommandBuilder()
+    .setName("help")
+    .setDescription("Muestra todos los comandos del bot.")
 
-if (!fs.existsSync(carpetaComandos)) {
-  fs.mkdirSync(carpetaComandos, { recursive: true });
-  console.log("📁 Carpeta 'comandos' creada.");
-}
+].map(command => command.toJSON());
 
-const archivos = fs
-  .readdirSync(carpetaComandos)
-  .filter((archivo) => archivo.endsWith(".js"));
+// ========================================
+// REGISTRAR COMANDOS
+// ========================================
 
-for (const archivo of archivos) {
-  try {
-    const ruta = path.join(carpetaComandos, archivo);
-    const comando = require(ruta);
+async function registerCommands() {
 
-    if (!comando.data || !comando.execute) {
-      console.warn(
-        `⚠️ ${archivo} no tiene data o execute.`
-      );
-      continue;
-    }
-
-    client.commands.set(
-      comando.data.name,
-      comando
-    );
-
-    comandos.push(
-      comando.data.toJSON()
-    );
-
-    console.log(
-      `✅ Cargado: /${comando.data.name}`
-    );
-
-  } catch (error) {
-    console.error(
-      `❌ Error cargando ${archivo}:`
-    );
-    console.error(error);
-  }
-}
-
-// ================================
-// REGISTRAR COMANDOS GLOBALES
-// ================================
-
-async function registrarComandos() {
-  const rest = new REST({
-    version: "10"
-  }).setToken(TOKEN);
+  const rest = new REST({ version: "10" })
+    .setToken(TOKEN);
 
   try {
-    console.log(
-      `🔄 Registrando ${comandos.length} comandos globales...`
-    );
+
+    console.log(`🔄 Registrando ${commands.length} comandos...`);
 
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
       {
-        body: comandos
+        body: commands
       }
     );
 
-    console.log(
-      "✅ Comandos registrados globalmente."
-    );
+    console.log("✅ Comandos registrados correctamente.");
 
   } catch (error) {
-    console.error(
-      "❌ Error registrando comandos:"
-    );
+
+    console.error("❌ Error registrando comandos:");
     console.error(error);
+
   }
 }
 
-// ================================
+// ========================================
 // BOT LISTO
-// ================================
+// ========================================
 
 client.once(
   Events.ClientReady,
-  async (bot) => {
+  async bot => {
 
     console.log("");
     console.log("================================");
     console.log("🤖 DARK FF V1");
     console.log("================================");
-    console.log(
-      `✅ Conectado como: ${bot.user.tag}`
-    );
-    console.log(
-      `🌐 Servidores: ${bot.guilds.cache.size}`
-    );
-    console.log(
-      `📦 Comandos: ${client.commands.size}`
-    );
-    console.log(
-      "🌎 BOT PÚBLICO ACTIVADO"
-    );
+
+    console.log(`✅ Conectado como: ${bot.user.tag}`);
+    console.log(`🌐 Servidores: ${bot.guilds.cache.size}`);
+    console.log(`📦 Comandos: ${commands.length}`);
+    console.log("🌎 BOT PÚBLICO ACTIVADO");
+
     console.log("================================");
 
-    await registrarComandos();
+    await registerCommands();
 
-    console.log(
-      "🚀 Bot iniciado correctamente."
-    );
+    console.log("🚀 Bot iniciado correctamente.");
+
   }
 );
 
-// ================================
-// EJECUTAR COMANDOS
-// ================================
+// ========================================
+// INTERACCIONES
+// ========================================
 
 client.on(
   Events.InteractionCreate,
-  async (interaction) => {
+  async interaction => {
 
     if (!interaction.isChatInputCommand()) {
       return;
     }
 
-    const comando =
-      client.commands.get(
-        interaction.commandName
+    // ====================================
+    // /PING
+    // ====================================
+
+    if (interaction.commandName === "ping") {
+
+      const ping = client.ws.ping;
+
+      await interaction.reply(
+        `🏓 **Pong!**\n📡 Ping: **${ping}ms**`
       );
 
-    if (!comando) {
-      return interaction.reply({
-        content:
-          "❌ Ese comando no existe o todavía no está cargado.",
-        ephemeral: true
+      return;
+    }
+
+    // ====================================
+    // /HELP
+    // ====================================
+
+    if (interaction.commandName === "help") {
+
+      const embed = new EmbedBuilder()
+        .setTitle("🤖 DARK FF V1")
+        .setDescription(
+          "📚 **Lista de comandos disponibles**"
+        )
+        .addFields(
+          {
+            name: "🏓 /ping",
+            value: "Comprueba si el bot está funcionando.",
+            inline: false
+          },
+          {
+            name: "📚 /help",
+            value: "Muestra esta lista de comandos.",
+            inline: false
+          }
+        )
+        .setFooter({
+          text: "DARK FF V1 • Bot público"
+        })
+        .setTimestamp();
+
+      await interaction.reply({
+        embeds: [embed]
       });
+
+      return;
     }
 
-    try {
-
-      await comando.execute(
-        interaction,
-        client
-      );
-
-    } catch (error) {
-
-      console.error(
-        `❌ Error en /${interaction.commandName}:`
-      );
-
-      console.error(error);
-
-      const respuesta = {
-        content:
-          "❌ Ocurrió un error al ejecutar este comando.",
-        ephemeral: true
-      };
-
-      if (
-        interaction.replied ||
-        interaction.deferred
-      ) {
-        await interaction
-          .followUp(respuesta)
-          .catch(() => {});
-      } else {
-        await interaction
-          .reply(respuesta)
-          .catch(() => {});
-      }
-    }
   }
 );
 
-// ================================
+// ========================================
 // ERRORES
-// ================================
+// ========================================
 
 process.on(
   "unhandledRejection",
-  (error) => {
-    console.error(
-      "❌ Error de promesa:"
-    );
+  error => {
+
+    console.error("❌ Error de promesa:");
     console.error(error);
+
   }
 );
 
 process.on(
   "uncaughtException",
-  (error) => {
-    console.error(
-      "❌ Error inesperado:"
-    );
+  error => {
+
+    console.error("❌ Error inesperado:");
     console.error(error);
+
   }
 );
 
-// ================================
-// INICIAR
-// ================================
+// ========================================
+// INICIAR BOT
+// ========================================
 
 client.login(TOKEN);
