@@ -40,7 +40,7 @@ const client = new Client({
 });
 
 // ========================================
-// COMANDOS
+// 100 COMANDOS
 // ========================================
 
 const commandNames = [
@@ -142,11 +142,12 @@ const commandNames = [
   "language",
   "premium",
   "donate",
-  "helpme",
-  "commands",
   "dark",
   "darkff"
 ];
+
+// Comprobación
+console.log(`📦 Total de comandos: ${commandNames.length}`);
 
 // ========================================
 // CREAR SLASH COMMANDS
@@ -158,7 +159,7 @@ const commands = commandNames.map(name => {
     .setName(name)
     .setDescription(`Comando ${name} de DARK FF V1.`);
 
-  // /ship necesita dos usuarios
+  // /ship
   if (name === "ship") {
     command
       .addUserOption(option =>
@@ -175,7 +176,7 @@ const commands = commandNames.map(name => {
       );
   }
 
-  // /funar necesita un usuario
+  // /funar
   if (name === "funar") {
     command.addUserOption(option =>
       option
@@ -199,7 +200,9 @@ async function registerCommands() {
 
   try {
 
-    console.log(`🔄 Registrando ${commands.length} comandos...`);
+    console.log(
+      `🔄 Registrando ${commands.length} comandos...`
+    );
 
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
@@ -208,7 +211,7 @@ async function registerCommands() {
       }
     );
 
-    console.log("✅ Comandos registrados correctamente.");
+    console.log("✅ 100 comandos registrados correctamente.");
 
   } catch (error) {
 
@@ -283,20 +286,33 @@ client.on(
       const embed = new EmbedBuilder()
         .setTitle("🤖 DARK FF V1")
         .setDescription(
-          `📚 **Lista de comandos disponibles**\n\n` +
-          `Tenemos **${commands.length} comandos** disponibles.`
+          `📚 **Lista de comandos**\n\n` +
+          `⚡ Total: **${commandNames.length} comandos**`
         )
-        .addFields({
-          name: "📋 Comandos",
-          value: commandNames
-            .map(name => `\`/${name}\``)
-            .join(" • ")
-            .slice(0, 1024)
-        })
         .setFooter({
           text: "DARK FF V1 • Bot público"
         })
         .setTimestamp();
+
+      // Dividir los 100 comandos en grupos
+      // para no superar el límite de Discord.
+      const grupos = [];
+
+      for (let i = 0; i < commandNames.length; i += 25) {
+        grupos.push(commandNames.slice(i, i + 25));
+      }
+
+      grupos.forEach((grupo, index) => {
+
+        embed.addFields({
+          name: `📋 Comandos ${index + 1}`,
+          value: grupo
+            .map(name => `\`/${name}\``)
+            .join(" • "),
+          inline: false
+        });
+
+      });
 
       await interaction.reply({
         embeds: [embed]
@@ -311,7 +327,8 @@ client.on(
 
     if (command === "funar") {
 
-      const usuario = interaction.options.getUser("usuario");
+      const usuario =
+        interaction.options.getUser("usuario");
 
       const embed = new EmbedBuilder()
         .setTitle("📢 FUNA")
@@ -340,10 +357,14 @@ client.on(
 
     if (command === "ship") {
 
-      const usuario1 = interaction.options.getUser("usuario1");
-      const usuario2 = interaction.options.getUser("usuario2");
+      const usuario1 =
+        interaction.options.getUser("usuario1");
 
-      const porcentaje = Math.floor(Math.random() * 101);
+      const usuario2 =
+        interaction.options.getUser("usuario2");
+
+      const porcentaje =
+        Math.floor(Math.random() * 101);
 
       let mensaje;
 
@@ -387,7 +408,8 @@ client.on(
     await interaction.reply({
       content:
         `⚡ **/${command}**\n\n` +
-        `Este comando está disponible en **DARK FF V1**. 🚀`
+        `Este comando está disponible en ` +
+        `**DARK FF V1**. 🚀`
     });
 
   }
@@ -400,16 +422,20 @@ client.on(
 process.on(
   "unhandledRejection",
   error => {
+
     console.error("❌ Error de promesa:");
     console.error(error);
+
   }
 );
 
 process.on(
   "uncaughtException",
   error => {
+
     console.error("❌ Error inesperado:");
     console.error(error);
+
   }
 );
 
@@ -419,6 +445,17 @@ process.on(
 
 client.login(TOKEN);
 
-Ojo: el "/ship" aquí es un minijuego de compatibilidad aleatorio, y "/funar" es solo una broma del bot; no acusa realmente a nadie de haber cometido algo.
+En Render
 
-Con este "index.js", Render registrará 100 comandos incluyendo "/ping", "/help", "/funar" y "/ship".
+No necesitas cambiar el comando de inicio. Déjalo:
+
+node index.js
+
+Cuando se inicie, en los logs debe aparecer:
+
+📦 Total de comandos: 100
+🔄 Registrando 100 comandos...
+✅ 100 comandos registrados correctamente.
+🚀 Bot iniciado correctamente.
+
+Y tendrás "/funar", "/ship", "/ping" y "/help" funcionando; los demás comandos ya aparecerán en Discord pero por ahora responderán con el mensaje genérico.
