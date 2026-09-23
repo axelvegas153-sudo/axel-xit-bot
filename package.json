@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node index.js"
   },
+  "engines": {
+    "node": ">=18.17.0"
+  },
   "dependencies": {
     "discord.js": "14.27.0",
     "distube": "5.2.3",
