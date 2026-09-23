@@ -1,14 +1,39 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+require('dotenv').config();
+
+const fs = require('fs');
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ChannelType
+} = require('discord.js');
+
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
-const fs = require('fs');
-require('dotenv').config();
 
+// ======================================================
 // CONFIG
-const CREATOR_ID = '1483521913429950658'; // PEGA TU ID DE DISCORD
-const SERVER_INVITE = 'https://discord.gg/gmr6CmEqQ';
+// ======================================================
+
 const TOKEN = process.env.TOKEN;
+
+const CREATOR_ID = '1483521913429950658';
+const SERVER_INVITE = 'https://discord.gg/gmr6CmEqQ';
+
+if (!TOKEN) {
+  console.error('❌ ERROR: Falta la variable TOKEN en Render.');
+  process.exit(1);
+}
+
+// ======================================================
+// CLIENTE DISCORD
+// ======================================================
 
 const client = new Client({
   intents: [
@@ -21,309 +46,781 @@ const client = new Client({
   ]
 });
 
-// DB Y VARIABLES
+// ======================================================
+// ARCHIVOS
+// ======================================================
+
 let levels = {};
-let config = {}; // CONFIG DE BIENVENIDA/DESPEDIDA POR SERVER
-try { levels = require('./levels.json'); } catch { levels = {}; }
-try { config = require('./config.json'); } catch { config = {}; }
-let cooldown = {};
-let joinCache = [];
-let raidMode = false;
+let config = {};
+
+function cargarJSON(archivo, valorPorDefecto) {
+  try {
+    if (!fs.existsSync(archivo)) {
+      fs.writeFileSync(
+        archivo,
+        JSON.stringify(valorPorDefecto, null, 2)
+      );
+      return valorPorDefecto;
+    }
+
+    return JSON.parse(fs.readFileSync(archivo, 'utf8'));
+  } catch (error) {
+    console.error(`❌ Error leyendo ${archivo}:`, error.message);
+    return valorPorDefecto;
+  }
+}
+
+levels = cargarJSON('./levels.json', {});
+config = cargarJSON('./config.json', {});
+
+function guardarLevels() {
+  try {
+    fs.writeFileSync(
+      './levels.json',
+      JSON.stringify(levels, null, 2)
+    );
+  } catch (error) {
+    console.error('❌ Error guardando levels.json:', error.message);
+  }
+}
+
+function guardarConfig() {
+  try {
+    fs.writeFileSync(
+      './config.json',
+      JSON.stringify(config, null, 2)
+    );
+  } catch (error) {
+    console.error('❌ Error guardando config.json:', error.message);
+  }
+}
+
+// ======================================================
+// VARIABLES
+// ======================================================
+
+const cooldown = {};
+const joinCache = {};
+
 let antilink = true;
 let antiraid = true;
 
-// ANTI-SPAM CONFIG
-const palabrasProhibidas = ['porno', 'xxx', 'nude', 'onlyfans', 'hentai', 'rule34', 'leaked'];
-const inviteRegex = /(discord\.gg\/|discord\.com\/invite\/)/i;
-let linkWarnings = {};
-const tiemposMute = { '1h': 3600000, '4h': 14400000, '5h': 18000000, '8h': 28800000 };
-let tiempoMuteActual = tiemposMute['1h'];
-
-// COLORES PARA HELP
-const colores = [0xFF0000, 0x00FF00, 0x0000FF, 0xFFD700, 0xFF69B4, 0x00FFFF, 0x9932CC, 0xFF4500];
-
-// DISTUBE
-const distube = new DisTube(client, { emitNewSongOnly: true, plugins: [new SpotifyPlugin(), new YtDlpPlugin()] });
-
-// FUNCION VIP
-function esVIP(member) {
-    if (member.id === CREATOR_ID) return true;
-    if (member.premiumSince) return true;
-    return false;
-}
-
-// FUNCION GUARDAR CONFIG
-function guardarConfig() {
-    fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
-}
-
-// COMANDOS
-const commands = [
-    new SlashCommandBuilder().setName('help').setDescription('Ver todos los comandos del bot'),
-    new SlashCommandBuilder().setName('axelchat').setDescription('Habla con la IA del bot').addStringOption(opt => opt.setName('pregunta').setRequired(true)),
-    new SlashCommandBuilder().setName('bienvenida').setDescription('Configurar bienvenidas').addChannelOption(opt => opt.setName('canal').setRequired(true)).addStringOption(opt => opt.setName('mensaje').setRequired(true)),
-    new SlashCommandBuilder().setName('despedida').setDescription('Configurar despedidas').addChannelOption(opt => opt.setName('canal').setRequired(true)).addStringOption(opt => opt.setName('mensaje').setRequired(true)),
-    new SlashCommandBuilder().setName('dm-bienvenida').setDescription('Activar/Desactivar DM de bienvenida').addStringOption(opt => opt.setName('estado').setRequired(true).addChoices({name: 'on', value: 'on'}, {name: 'off', value: 'off'})),
-    new SlashCommandBuilder().setName('axelavatar').setDescription('Muestra avatar').addUserOption(opt => opt.setName('usuario').setRequired(false)),
-    new SlashCommandBuilder().setName('servericono').setDescription('Muestra icono del server'),
-    new SlashCommandBuilder().setName('axelrank').setDescription('Ver tu nivel').addUserOption(opt => opt.setName('usuario').setRequired(false)),
-    new SlashCommandBuilder().setName('axeltop').setDescription('Top 10 niveles'),
-    new SlashCommandBuilder().setName('play').setDescription('Reproducir musica').addStringOption(opt => opt.setName('cancion').setRequired(true)),
-    new SlashCommandBuilder().setName('skip').setDescription('Saltar cancion'),
-    new SlashCommandBuilder().setName('stop').setDescription('Detener musica'),
-    new SlashCommandBuilder().setName('queue').setDescription('Ver cola'),
-    new SlashCommandBuilder().setName('axelserverinfo').setDescription('Info completa del servidor'),
-    new SlashCommandBuilder().setName('axel8ball').setDescription('Bola mágica').addStringOption(opt => opt.setName('pregunta').setRequired(true)),
-    new SlashCommandBuilder().setName('axelticket').setDescription('Crear ticket').addStringOption(opt => opt.setName('motivo').setRequired(true)),
-    new SlashCommandBuilder().setName('axelsay').setDescription('VIP: El bot dice lo que quieras').addStringOption(opt => opt.setName('mensaje').setRequired(true)),
-    new SlashCommandBuilder().setName('axelembed').setDescription('VIP: Crear embed').addStringOption(opt => opt.setName('titulo').setRequired(true)).addStringOption(opt => opt.setName('descripcion').setRequired(true)),
-    new SlashCommandBuilder().setName('axelrole').setDescription('VIP: Dar rol').addUserOption(opt => opt.setName('usuario').setRequired(true)).addRoleOption(opt => opt.setName('rol').setRequired(true)),
-    new SlashCommandBuilder().setName('axelbeneficios').setDescription('Ver beneficios VIP'),
-    new SlashCommandBuilder().setName('antilink').setDescription('Activar/Desactivar anti-link').addStringOption(opt => opt.setName('estado').setRequired(true).addChoices({name: 'on', value: 'on'}, {name: 'off', value: 'off'})),
-    new SlashCommandBuilder().setName('antiraid').setDescription('Activar/Desactivar anti-raid').addStringOption(opt => opt.setName('estado').setRequired(true).addChoices({name: 'on', value: 'on'}, {name: 'off', value: 'off'})),
-    new SlashCommandBuilder().setName('configmute').setDescription('Configurar tiempo de mute').addStringOption(opt => opt.setName('tiempo').setRequired(true).addChoices({ name: '1 Hora', value: '1h' }, { name: '4 Horas', value: '4h' }, { name: '5 Horas', value: '5h' }, { name: '8 Horas', value: '8h' })),
-    new SlashCommandBuilder().setName('addpalabra').setDescription('Añadir palabra prohibida').addStringOption(opt => opt.setName('palabra').setRequired(true)),
+const palabrasProhibidas = [
+  'porno',
+  'xxx',
+  'nude',
+  'onlyfans',
+  'hentai',
+  'rule34',
+  'leaked'
 ];
 
-// READY - GLOBAL
+const inviteRegex =
+  /(discord\.gg\/|discord\.com\/invite\/)/i;
+
+const tiemposMute = {
+  '1h': 60 * 60 * 1000,
+  '4h': 4 * 60 * 60 * 1000,
+  '5h': 5 * 60 * 60 * 1000,
+  '8h': 8 * 60 * 60 * 1000
+};
+
+let tiempoMuteActual = tiemposMute['1h'];
+
+const colores = [
+  0xFF0000,
+  0x00FF00,
+  0x0000FF,
+  0xFFD700,
+  0xFF69B4,
+  0x00FFFF,
+  0x9932CC,
+  0xFF4500
+];
+
+// ======================================================
+// DISTUBE
+// ======================================================
+
+let distube;
+
+try {
+  distube = new DisTube(client, {
+    emitNewSongOnly: true,
+    plugins: [
+      new SpotifyPlugin(),
+      new YtDlpPlugin({ update: true })
+    ]
+  });
+
+  console.log('✅ DisTube cargado.');
+} catch (error) {
+  console.error('❌ Error iniciando DisTube:', error);
+}
+
+// ======================================================
+// FUNCIONES
+// ======================================================
+
+function esVIP(member) {
+  if (!member) return false;
+
+  if (member.id === CREATOR_ID) {
+    return true;
+  }
+
+  if (member.premiumSince) {
+    return true;
+  }
+
+  return false;
+}
+
+function reemplazarVariables(texto, member) {
+  return texto
+    .replace(/{user}/g, `<@${member.id}>`)
+    .replace(/{server}/g, member.guild.name)
+    .replace(/{miembros}/g, `${member.guild.memberCount}`);
+}
+
+// ======================================================
+// COMANDOS
+// ======================================================
+
+const commands = [
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Ver todos los comandos del bot'),
+
+  new SlashCommandBuilder()
+    .setName('axelchat')
+    .setDescription('Habla con la IA del bot')
+    .addStringOption(option =>
+      option
+        .setName('pregunta')
+        .setDescription('Tu pregunta')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('bienvenida')
+    .setDescription('Configurar bienvenida')
+    .addChannelOption(option =>
+      option
+        .setName('canal')
+        .setDescription('Canal de bienvenida')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('mensaje')
+        .setDescription('Mensaje de bienvenida')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('despedida')
+    .setDescription('Configurar despedida')
+    .addChannelOption(option =>
+      option
+        .setName('canal')
+        .setDescription('Canal de despedidas')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('mensaje')
+        .setDescription('Mensaje de despedida')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('dm-bienvenida')
+    .setDescription('Activar o desactivar DM de bienvenida')
+    .addStringOption(option =>
+      option
+        .setName('estado')
+        .setDescription('Estado')
+        .setRequired(true)
+        .addChoices(
+          { name: 'on', value: 'on' },
+          { name: 'off', value: 'off' }
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axelavatar')
+    .setDescription('Muestra un avatar')
+    .addUserOption(option =>
+      option
+        .setName('usuario')
+        .setDescription('Usuario')
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('servericono')
+    .setDescription('Muestra el icono del servidor'),
+
+  new SlashCommandBuilder()
+    .setName('axelrank')
+    .setDescription('Ver tu nivel')
+    .addUserOption(option =>
+      option
+        .setName('usuario')
+        .setDescription('Usuario')
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axeltop')
+    .setDescription('Top 10 niveles'),
+
+  new SlashCommandBuilder()
+    .setName('play')
+    .setDescription('Reproducir música')
+    .addStringOption(option =>
+      option
+        .setName('cancion')
+        .setDescription('Nombre o enlace')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('skip')
+    .setDescription('Saltar canción'),
+
+  new SlashCommandBuilder()
+    .setName('stop')
+    .setDescription('Detener música'),
+
+  new SlashCommandBuilder()
+    .setName('queue')
+    .setDescription('Ver cola'),
+
+  new SlashCommandBuilder()
+    .setName('axelserverinfo')
+    .setDescription('Información del servidor'),
+
+  new SlashCommandBuilder()
+    .setName('axel8ball')
+    .setDescription('Bola mágica')
+    .addStringOption(option =>
+      option
+        .setName('pregunta')
+        .setDescription('Pregunta')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axelticket')
+    .setDescription('Crear ticket')
+    .addStringOption(option =>
+      option
+        .setName('motivo')
+        .setDescription('Motivo del ticket')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axelsay')
+    .setDescription('VIP: El bot dice un mensaje')
+    .addStringOption(option =>
+      option
+        .setName('mensaje')
+        .setDescription('Mensaje')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axelembed')
+    .setDescription('VIP: Crear embed')
+    .addStringOption(option =>
+      option
+        .setName('titulo')
+        .setDescription('Título')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName('descripcion')
+        .setDescription('Descripción')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axelrole')
+    .setDescription('VIP: Dar rol')
+    .addUserOption(option =>
+      option
+        .setName('usuario')
+        .setDescription('Usuario')
+        .setRequired(true)
+    )
+    .addRoleOption(option =>
+      option
+        .setName('rol')
+        .setDescription('Rol')
+        .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('axelbeneficios')
+    .setDescription('Ver beneficios VIP'),
+
+  new SlashCommandBuilder()
+    .setName('antilink')
+    .setDescription('Activar o desactivar anti-link')
+    .addStringOption(option =>
+      option
+        .setName('estado')
+        .setDescription('Estado')
+        .setRequired(true)
+        .addChoices(
+          { name: 'on', value: 'on' },
+          { name: 'off', value: 'off' }
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('antiraid')
+    .setDescription('Activar o desactivar anti-raid')
+    .addStringOption(option =>
+      option
+        .setName('estado')
+        .setDescription('Estado')
+        .setRequired(true)
+        .addChoices(
+          { name: 'on', value: 'on' },
+          { name: 'off', value: 'off' }
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('configmute')
+    .setDescription('Configurar tiempo de mute')
+    .addStringOption(option =>
+      option
+        .setName('tiempo')
+        .setDescription('Tiempo')
+        .setRequired(true)
+        .addChoices(
+          { name: '1 Hora', value: '1h' },
+          { name: '4 Horas', value: '4h' },
+          { name: '5 Horas', value: '5h' },
+          { name: '8 Horas', value: '8h' }
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('addpalabra')
+    .setDescription('Añadir palabra prohibida')
+    .addStringOption(option =>
+      option
+        .setName('palabra')
+        .setDescription('Palabra')
+        .setRequired(true)
+    )
+];
+
+// ======================================================
+// READY
+// ======================================================
+
 client.once('ready', async () => {
-    console.log(`✅ ${client.user.tag} encendido`);
-    await client.application.commands.set(commands); // GLOBAL PARA TODOS
-    console.log(`✅ ${commands.length} Comandos registrados GLOBALMENTE`);
+  try {
+    console.log('');
+    console.log('=================================');
+    console.log(`✅ ${client.user.tag} está conectado`);
+    console.log(`🌐 Servidores: ${client.guilds.cache.size}`);
+    console.log('=================================');
+
+    await client.application.commands.set(
+      commands.map(command => command.toJSON())
+    );
+
+    console.log(
+      `✅ ${commands.length} comandos registrados globalmente.`
+    );
+
+  } catch (error) {
+    console.error('❌ Error registrando comandos:', error);
+  }
 });
 
+// ======================================================
 // INTERACCIONES
+// ======================================================
+
 client.on('interactionCreate', async interaction => {
+
+  try {
+
+    // ==================================================
+    // SLASH COMMANDS
+    // ==================================================
+
     if (interaction.isChatInputCommand()) {
 
-        // HELP CON COLORES
-        if (interaction.commandName === 'help') {
-            const colorRandom = colores[Math.floor(Math.random() * colores.length)];
-            const embed = new EmbedBuilder()
-        .setColor(colorRandom)
-        .setTitle('📜 Axel BOT - LISTA DE COMANDOS')
-        .setDescription('Usa `/` para ver todos los comandos')
-        .addFields(
-                {name: '👑 GENERALES', value: '`/axelavatar` `/servericono` `/axelserverinfo` `/axel8ball`', inline: false},
-                {name: '📊 NIVELES', value: '`/axelrank` `/axeltop`', inline: true},
-                {name: '🎵 MUSICA', value: '`/play` `/skip` `/stop` `/queue`', inline: true},
-                {name: '🎫 TICKETS', value: '`/axelticket`', inline: true},
-                {name: '💎 VIP', value: '`/axelsay` `/axelembed` `/axelrole` `/axelbeneficios`', inline: false},
-                {name: '🛡️ MODERACIÓN', value: '`/antilink` `/antiraid` `/configmute` `/addpalabra`', inline: false},
-                {name: '📢 BIENVENIDAS', value: '`/bienvenida` `/despedida` `/dm-bienvenida`', inline: false},
-                {name: '🤖 IA', value: '`/axelchat`', inline: true},
-                {name: '❓ AYUDA', value: '`/help`', inline: true}
-            )
-        .setFooter({text: `Total: ${commands.length} comandos`})
-        .setTimestamp();
-            await interaction.reply({ embeds: [embed] });
+      // HELP
+      if (interaction.commandName === 'help') {
+
+        const color =
+          colores[Math.floor(Math.random() * colores.length)];
+
+        const embed = new EmbedBuilder()
+          .setColor(color)
+          .setTitle('📜 AXEL BOT - COMANDOS')
+          .setDescription('Usa `/` para ver todos los comandos.')
+          .addFields(
+            {
+              name: '👑 GENERALES',
+              value:
+                '`/axelavatar` `/servericono` `/axelserverinfo` `/axel8ball`'
+            },
+            {
+              name: '📊 NIVELES',
+              value: '`/axelrank` `/axeltop`'
+            },
+            {
+              name: '🎵 MÚSICA',
+              value: '`/play` `/skip` `/stop` `/queue`'
+            },
+            {
+              name: '🎫 TICKETS',
+              value: '`/axelticket`'
+            },
+            {
+              name: '💎 VIP',
+              value:
+                '`/axelsay` `/axelembed` `/axelrole` `/axelbeneficios`'
+            },
+            {
+              name: '🛡️ MODERACIÓN',
+              value:
+                '`/antilink` `/antiraid` `/configmute` `/addpalabra`'
+            },
+            {
+              name: '📢 BIENVENIDAS',
+              value:
+                '`/bienvenida` `/despedida` `/dm-bienvenida`'
+            },
+            {
+              name: '🤖 IA',
+              value: '`/axelchat`'
+            }
+          )
+          .setFooter({
+            text: `Total: ${commands.length} comandos`
+          })
+          .setTimestamp();
+
+        return interaction.reply({
+          embeds: [embed]
+        });
+      }
+
+      // AXEL CHAT
+      if (interaction.commandName === 'axelchat') {
+
+        const pregunta =
+          interaction.options.getString('pregunta');
+
+        const respuestas = [
+          `Sobre "${pregunta}", yo digo que sí se puede 💪`,
+          `Buena pregunta 🤔. Investiga un poco más sobre "${pregunta}".`,
+          `Claro que sí. Sobre "${pregunta}", sigue aprendiendo 🔥`,
+          `JAJA "${pregunta}" suena interesante 😂`
+        ];
+
+        const respuesta =
+          respuestas[
+            Math.floor(Math.random() * respuestas.length)
+          ];
+
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('🤖 AXEL IA')
+          .addFields(
+            {
+              name: 'Tu pregunta',
+              value: pregunta.slice(0, 1024)
+            },
+            {
+              name: 'Mi respuesta',
+              value: respuesta
+            }
+          );
+
+        return interaction.reply({
+          embeds: [embed]
+        });
+      }
+
+      // BIENVENIDA
+      if (interaction.commandName === 'bienvenida') {
+
+        if (
+          !interaction.member.permissions.has(
+            PermissionFlagsBits.Administrator
+          )
+        ) {
+          return interaction.reply({
+            content: '❌ No tienes permisos de administrador.',
+            ephemeral: true
+          });
         }
 
-        // IA CHAT
-        if (interaction.commandName === 'axelchat') {
-            const pregunta = interaction.options.getString('pregunta');
-            await interaction.deferReply();
-            const respuestasIA = [
-                `Basado en tu pregunta: "${pregunta}"... Yo digo que sí se puede 💪`,
-                `Mmm buena pregunta 🤔 Sobre "${pregunta}" te diría que investigues más.`,
-                `Claro que sí! Respecto a "${pregunta}", aquí va mi consejo: Sé tu mejor versión.`,
-                `JAJA "${pregunta}" suena interesante. Yo como bot digo: Dale con todo 🔥`
-            ];
-            const respuesta = respuestasIA[Math.floor(Math.random() * respuestasIA.length)];
-            const embed = new EmbedBuilder().setColor(0x5865F2).setTitle('🤖 AXEL IA').addFields({name: 'Tu pregunta', value: pregunta}, {name: 'Mi respuesta', value: respuesta});
-            await interaction.editReply({ embeds: [embed] });
+        const canal =
+          interaction.options.getChannel('canal');
+
+        const mensaje =
+          interaction.options.getString('mensaje');
+
+        if (!config[interaction.guild.id]) {
+          config[interaction.guild.id] = {};
         }
 
-        // BIENVENIDA
-        if (interaction.commandName === 'bienvenida') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply('❌ No tienes permisos');
-            const canal = interaction.options.getChannel('canal');
-            const mensaje = interaction.options.getString('mensaje');
-            if (!config[interaction.guild.id]) config[interaction.guild.id] = {};
-            config[interaction.guild.id].bienvenidaCanal = canal.id;
-            config[interaction.guild.id].bienvenidaMsg = mensaje;
-            guardarConfig();
-            await interaction.reply(`✅ Bienvenida configurada en ${canal}\nMensaje: ${mensaje}\nVariables: {user} {server} {miembros}`);
+        config[interaction.guild.id].bienvenidaCanal =
+          canal.id;
+
+        config[interaction.guild.id].bienvenidaMsg =
+          mensaje;
+
+        guardarConfig();
+
+        return interaction.reply(
+          `✅ Bienvenida configurada en ${canal}.\n` +
+          `Mensaje: ${mensaje}\n\n` +
+          `Variables disponibles: {user} {server} {miembros}`
+        );
+      }
+
+      // DESPEDIDA
+      if (interaction.commandName === 'despedida') {
+
+        if (
+          !interaction.member.permissions.has(
+            PermissionFlagsBits.Administrator
+          )
+        ) {
+          return interaction.reply({
+            content: '❌ No tienes permisos de administrador.',
+            ephemeral: true
+          });
         }
 
-        // DESPEDIDA
-        if (interaction.commandName === 'despedida') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply('❌ No tienes permisos');
-            const canal = interaction.options.getChannel('canal');
-            const mensaje = interaction.options.getString('mensaje');
-            if (!config[interaction.guild.id]) config[interaction.guild.id] = {};
-            config[interaction.guild.id].despedidaCanal = canal.id;
-            config[interaction.guild.id].despedidaMsg = mensaje;
-            guardarConfig();
-            await interaction.reply(`✅ Despedida configurada en ${canal}\nMensaje: ${mensaje}`);
+        const canal =
+          interaction.options.getChannel('canal');
+
+        const mensaje =
+          interaction.options.getString('mensaje');
+
+        if (!config[interaction.guild.id]) {
+          config[interaction.guild.id] = {};
         }
 
-        // DM BIENVENIDA
-        if (interaction.commandName === 'dm-bienvenida') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply('❌ No tienes permisos');
-            const estado = interaction.options.getString('estado') === 'on';
-            if (!config[interaction.guild.id]) config[interaction.guild.id] = {};
-            config[interaction.guild.id].dmBienvenida = estado;
-            guardarConfig();
-            await interaction.reply(`✅ DM de bienvenida: **${estado? 'ACTIVADO' : 'DESACTIVADO'}**`);
+        config[interaction.guild.id].despedidaCanal =
+          canal.id;
+
+        config[interaction.guild.id].despedidaMsg =
+          mensaje;
+
+        guardarConfig();
+
+        return interaction.reply(
+          `✅ Despedida configurada en ${canal}.`
+        );
+      }
+
+      // DM BIENVENIDA
+      if (interaction.commandName === 'dm-bienvenida') {
+
+        if (
+          !interaction.member.permissions.has(
+            PermissionFlagsBits.Administrator
+          )
+        ) {
+          return interaction.reply({
+            content: '❌ No tienes permisos.',
+            ephemeral: true
+          });
         }
 
-        // AVATAR
-        if (interaction.commandName === 'axelavatar') {
-            const user = interaction.options.getUser('usuario') || interaction.user;
-            const avatar = user.displayAvatarURL({ dynamic: true, size: 1024 });
-            const embed = new EmbedBuilder().setColor(0x5865F2).setTitle(`Avatar de ${user.username}`).setImage(avatar);
-            await interaction.reply({ embeds: [embed] });
+        const estado =
+          interaction.options.getString('estado') === 'on';
+
+        if (!config[interaction.guild.id]) {
+          config[interaction.guild.id] = {};
         }
 
-        // SERVERINFO
-        if (interaction.commandName === 'axelserverinfo') {
-            const guild = interaction.guild;
-            const embed = new EmbedBuilder().setColor(0x5865F2).setTitle(`📊 Info de ${guild.name}`).setThumbnail(guild.iconURL()).addFields({name: '👑 Dueño', value: `<@${guild.ownerId}>`, inline: true},{name: '👥 Miembros', value: `${guild.memberCount}`, inline: true},{name: '💎 Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true}).setTimestamp();
-            await interaction.reply({ embeds: [embed] });
+        config[interaction.guild.id].dmBienvenida =
+          estado;
+
+        guardarConfig();
+
+        return interaction.reply(
+          `✅ DM de bienvenida: **${
+            estado ? 'ACTIVADO' : 'DESACTIVADO'
+          }**`
+        );
+      }
+
+      // AVATAR
+      if (interaction.commandName === 'axelavatar') {
+
+        const user =
+          interaction.options.getUser('usuario') ||
+          interaction.user;
+
+        const avatar =
+          user.displayAvatarURL({
+            extension: 'png',
+            size: 1024
+          });
+
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`Avatar de ${user.username}`)
+          .setImage(avatar);
+
+        return interaction.reply({
+          embeds: [embed]
+        });
+      }
+
+      // SERVER ICON
+      if (interaction.commandName === 'servericono') {
+
+        const icon = interaction.guild.iconURL({
+          extension: 'png',
+          size: 1024
+        });
+
+        if (!icon) {
+          return interaction.reply(
+            '❌ Este servidor no tiene icono.'
+          );
         }
 
-        // 8BALL
-        if (interaction.commandName === 'axel8ball') {
-            const pregunta = interaction.options.getString('pregunta');
-            const respuestas = ['Sí 🔮', 'No ❌', 'Tal vez 🤔', 'Obvio que sí ✅', 'Ni de broma 🚫'];
-            const respuesta = respuestas[Math.floor(Math.random() * respuestas.length)];
-            const embed = new EmbedBuilder().setColor(0x9932CC).setTitle('🎱 Bola Mágica 8').addFields({name: 'Pregunta', value: pregunta},{name: 'Respuesta', value: respuesta});
-            await interaction.reply({ embeds: [embed] });
-        }
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`🖼️ Icono de ${interaction.guild.name}`)
+          .setImage(icon);
 
-        // TICKET
-        if (interaction.commandName === 'axelticket') {
-            const motivo = interaction.options.getString('motivo');
-            const canal = await interaction.guild.channels.create({ name: `ticket-${interaction.user.username}`, type: 0, permissionOverwrites: [{ id: interaction.guild.id, deny: ['ViewChannel'] }, { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }] });
-            const embed = new EmbedBuilder().setColor(0xFF0000).setTitle('🎫 Ticket Creado').setDescription(`Hola ${interaction.user}, un staff te atenderá pronto.\n**Motivo:** ${motivo}`);
-            const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cerrar_ticket').setLabel('🔒 Cerrar Ticket').setStyle(ButtonStyle.Danger));
-            await canal.send({ embeds: [embed], components: [row] });
-            await interaction.reply({ content: `✅ Ticket creado: ${canal}`, ephemeral: true });
-        }
+        return interaction.reply({
+          embeds: [embed]
+        });
+      }
 
-        // VIP COMMANDS
-        if (interaction.commandName === 'axelsay') {
-            if (!esVIP(interaction.member)) return interaction.reply({content: `❌ **COMANDO VIP** 💎\nMejora el server: ${SERVER_INVITE}`, ephemeral: true});
-            await interaction.reply(interaction.options.getString('mensaje'));
-        }
-        if (interaction.commandName === 'axelembed') {
-            if (!esVIP(interaction.member)) return interaction.reply({content: `❌ **COMANDO VIP** 💎\nMejora el server: ${SERVER_INVITE}`, ephemeral: true});
-            const embed = new EmbedBuilder().setColor(0xFFD700).setTitle(interaction.options.getString('titulo')).setDescription(interaction.options.getString('descripcion'));
-            await interaction.reply({ embeds: [embed] });
-        }
-        if (interaction.commandName === 'axelrole') {
-            if (!esVIP(interaction.member)) return interaction.reply({content: `❌ **COMANDO VIP** 💎\nMejora el server: ${SERVER_INVITE}`, ephemeral: true});
-            const usuario = interaction.options.getUser('usuario');
-            const rol = interaction.options.getRole('rol');
-            const member = interaction.guild.members.cache.get(usuario.id);
-            await member.roles.add(rol);
-            await interaction.reply(`✅ Le di **${rol.name}** a ${usuario}`);
-        }
-        if (interaction.commandName === 'axelbeneficios') {
-            const embed = new EmbedBuilder().setColor(0xFFD700).setTitle('💎 BENEFICIOS VIP').setDescription('Desbloquea estos comandos mejorando el servidor:').addFields({name: '/axelsay', value: 'El bot dice lo que quieras'},{name: '/axelembed', value: 'Crear embeds personalizados'},{name: '/axelrole', value: 'Dar roles a otros usuarios'});
-            await interaction.reply({ embeds: [embed] });
-        }
+      // SERVER INFO
+      if (interaction.commandName === 'axelserverinfo') {
 
-        // CONFIG MOD
-        if (interaction.commandName === 'configmute') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ModerateMembers)) return interaction.reply('❌ No tienes permisos');
-            tiempoMuteActual = tiemposMute[interaction.options.getString('tiempo')];
-            await interaction.reply(`✅ Mute actualizado a: **${interaction.options.getString('tiempo')}**`);
-        }
-        if (interaction.commandName === 'antilink') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply('❌ No tienes permisos');
-            antilink = interaction.options.getString('estado') === 'on';
-            await interaction.reply(`✅ Anti-Link: **${antilink? 'ON' : 'OFF'}**`);
-        }
-        if (interaction.commandName === 'antiraid') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply('❌ No tienes permisos');
-            antiraid = interaction.options.getString('estado') === 'on';
-            await interaction.reply(`✅ Anti-Raid: **${antiraid? 'ON' : 'OFF'}**`);
-        }
-        if (interaction.commandName === 'addpalabra') {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply('❌ Solo Admins');
-            const palabra = interaction.options.getString('palabra').toLowerCase();
-            palabrasProhibidas.push(palabra);
-            await interaction.reply(`✅ Palabra **${palabra}** añadida a la lista negra`);
-        }
+        const guild = interaction.guild;
 
-        // COMANDOS MUSICA - ESTO ES LO NUEVO
-        if (interaction.commandName === 'play') {
-            if (!interaction.member.voice.channel) return interaction.reply('❌ Entra a un canal de voz primero');
-            const cancion = interaction.options.getString('cancion');
-            await interaction.deferReply();
-            distube.play(interaction.member.voice.channel, cancion, { textChannel: interaction.channel, member: interaction.member });
-        }
-        if (interaction.commandName === 'skip') {
-            await interaction.deferReply();
-            distube.skip(interaction);
-            await interaction.editReply('⏭️ Canción saltada');
-        }
-        if (interaction.commandName === 'stop') {
-            await interaction.deferReply();
-            distube.stop(interaction);
-            await interaction.editReply('⏹️ Música detenida');
-        }
-        if (interaction.commandName === 'queue') {
-            const queue = distube.getQueue(interaction);
-            if (!queue) return interaction.reply('La cola está vacía');
-            const q = queue.songs.map((s,i)=>`${i+1}. ${s.name} - \`${s.formattedDuration}\``).join('\n');
-            await interaction.reply(`🎶 **Cola:**\n${q}`);
-        }
-    }
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle(`📊 Info de ${guild.name}`)
+          .setThumbnail(
+            guild.iconURL({
+              extension: 'png',
+              size: 512
+            })
+          )
+          .addFields(
+            {
+              name: '👑 Dueño',
+              value: `<@${guild.ownerId}>`,
+              inline: true
+            },
+            {
+              name: '👥 Miembros',
+              value: `${guild.memberCount}`,
+              inline: true
+            },
+            {
+              name: '💎 Boosts',
+              value: `${guild.premiumSubscriptionCount || 0}`,
+              inline: true
+            }
+          )
+          .setTimestamp();
 
-    if (interaction.isButton()) {
-        if (interaction.customId === 'cerrar_ticket') {
-            await interaction.reply('🔒 Cerrando en 5 seg...');
-            setTimeout(() => interaction.channel.delete(), 5000);
-        }
-    }
-});
+        return interaction.reply({
+          embeds: [embed]
+        });
+      }
 
-// MENSAJES - NIVELES + ANTI-SPAM
-client.on('messageCreate', async message => {
-    if (message.author.bot) return;
+      // 8BALL
+      if (interaction.commandName === 'axel8ball') {
 
-    // NIVELES
-    const guildId = message.guild.id; const userId = message.author.id;
-    if (!levels[guildId]) levels[guildId] = {};
-    if (!levels[guildId][userId]) levels[guildId][userId] = { xp: 0, level: 1 };
-    const ahora = Date.now();
-    if (!cooldown[userId] || ahora - cooldown[userId] > 60000) {
-        cooldown[userId] = ahora;
-        levels[guildId][userId].xp += Math.floor(Math.random() * 10) + 15;
-        const xpNeeded = levels[guildId][userId].level * 100;
-        if (levels[guildId][userId].xp >= xpNeeded) {
-            levels[guildId][userId].xp -= xpNeeded;
-            levels[guildId][userId].level++;
-            message.channel.send(`🎉 ${message.author} subió a **Nivel ${levels[guildId][userId].level}**`);
-        }
-        fs.writeFileSync('./levels.json', JSON.stringify(levels));
-    }
+        const pregunta =
+          interaction.options.getString('pregunta');
 
-    // ANTI-SPAM
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-        const contenido = message.content.toLowerCase();
-        if (antilink && inviteRegex.test(contenido)) {
-            await message.delete();
-            await message.member.timeout(tiempoMuteActual, 'Invite otro server');
-            return message.channel.send(`🔨 ${message.author} muteado por mandar invite`).then(m => setTimeout(() => m.delete(), 5000));
-        }
-        if (antilink && palabrasProhibidas.some(p => contenido.includes(p))) {
-            await message.delete();
-            await message.member.timeout(tiempoMuteActual, 'Contenido +18');
-            return message.channel.send(`🔞 ${message.author} muteado por +18`).then(m => setTimeout(() => m.delete(), 5000));
-        }
-    }
-});
+        const respuestas = [
+          'Sí 🔮',
+          'No ❌',
+          'Tal vez 🤔',
+          'Obvio que sí ✅',
+          'Ni de broma 🚫'
+        ];
 
-// BIENVENIDA Y DESPEDIDA
-client.on('guildMemberAdd', async member => {
-    const guildConfig = config[member.guild.id];
+        const respuesta =
+          respuestas[
+            Math.floor(Math.random() * respuestas.length)
+          ];
 
-    // ANTI-RAID
-    if (antiraid) {
-        if (raidMode) return member.kick('Anti-Raid');
-        joinCache.push(Date.now());
-        joinCache = joinCache.filt
+        const embed = new EmbedBuilder()
+          .setColor(0x9932CC)
+          .setTitle('🎱 Bola Mágica 8')
+          .addFields(
+            {
+              name: 'Pregunta',
+              value: pregunta
+            },
+            {
+              name: 'Respuesta',
+              value: respuesta
+            }
+          );
+
+        return interaction.reply({
+          embeds: [embed]
+        });
+      }
+
+      // TICKET
+      if (interaction.commandName === 'axelticket') {
+
+        const motivo =
+          interaction.options.getString('motivo');
+
+        const canal =
+          await interaction.guild.channels.create({
+            name:
+              `ticket-${interaction.user.username}`
+                .toLowerCase()
+                .replace(/[^a-z0-9-_]/g, '')
+                .slice(0, 90),
+
+            type: ChannelType.GuildText,
+
+            permissionOverwrites: [
+              {
+                id: interaction.guild.id,
+                deny: [PermissionFlagsBits.ViewChannel]
+              },
+              {
+                id: interaction.user.id,
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ReadMessageHistory
+                ]
+              }
+            ]
+          });
+
+        const embed = new EmbedBuilder()
+          .setColor(0xFF000
