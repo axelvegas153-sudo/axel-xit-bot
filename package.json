@@ -1,0 +1,13 @@
+{
+  "name": "axel-xit-bot",
+  "version": "1.0.0",
+  "description": "Bot de Discord Axel XIT 24/7",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5"
+  }
+}
