@@ -1,7 +1,6 @@
 {
-  "name": "dark-bot",
+  "name": "dark-ff-v1",
   "version": "1.0.0",
-  "description": "Bot de Discord DARK FF V1",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,7 +9,7 @@
     "node": ">=18.17.0"
   },
   "dependencies": {
-    "discord.js": "^14.27.0",
-    "dotenv": "^16.6.1"
+    "discord.js": "14.27.0",
+    "dotenv": "^16.4.7"
   }
 }
