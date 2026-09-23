@@ -1,6 +1,5 @@
-╔════════════════════════════════════════╗
-║     ⚡ DARK | FF | V1 | BOT DE DISCORD ⚡     ║
-╚════════════════════════════════════════╝
+⚡ DARK | FF | V1 | BOT DE DISCORD ⚡
+
 📜 ¿QUÉ ES DARK FF V1?
 DARK es un bot multifuncional de nueva generación para Discord. Desarrollado para optimizar, proteger y hacer crecer comunidades de todos los tamaños. 
 
