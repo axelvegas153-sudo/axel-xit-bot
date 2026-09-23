@@ -100,10 +100,10 @@ client.on('interactionCreate', async interaction => {
         if (interaction.commandName === 'help') {
             const colorRandom = colores[Math.floor(Math.random() * colores.length)];
             const embed = new EmbedBuilder()
-         .setColor(colorRandom)
-         .setTitle('📜 Axel BOT - LISTA DE COMANDOS')
-         .setDescription('Usa `/` para ver todos los comandos')
-         .addFields(
+        .setColor(colorRandom)
+        .setTitle('📜 Axel BOT - LISTA DE COMANDOS')
+        .setDescription('Usa `/` para ver todos los comandos')
+        .addFields(
                 {name: '👑 GENERALES', value: '`/axelavatar` `/servericono` `/axelserverinfo` `/axel8ball`', inline: false},
                 {name: '📊 NIVELES', value: '`/axelrank` `/axeltop`', inline: true},
                 {name: '🎵 MUSICA', value: '`/play` `/skip` `/stop` `/queue`', inline: true},
@@ -114,8 +114,8 @@ client.on('interactionCreate', async interaction => {
                 {name: '🤖 IA', value: '`/axelchat`', inline: true},
                 {name: '❓ AYUDA', value: '`/help`', inline: true}
             )
-         .setFooter({text: `Total: ${commands.length} comandos`})
-         .setTimestamp();
+        .setFooter({text: `Total: ${commands.length} comandos`})
+        .setTimestamp();
             await interaction.reply({ embeds: [embed] });
         }
 
@@ -247,6 +247,30 @@ client.on('interactionCreate', async interaction => {
             palabrasProhibidas.push(palabra);
             await interaction.reply(`✅ Palabra **${palabra}** añadida a la lista negra`);
         }
+
+        // COMANDOS MUSICA - ESTO ES LO NUEVO
+        if (interaction.commandName === 'play') {
+            if (!interaction.member.voice.channel) return interaction.reply('❌ Entra a un canal de voz primero');
+            const cancion = interaction.options.getString('cancion');
+            await interaction.deferReply();
+            distube.play(interaction.member.voice.channel, cancion, { textChannel: interaction.channel, member: interaction.member });
+        }
+        if (interaction.commandName === 'skip') {
+            await interaction.deferReply();
+            distube.skip(interaction);
+            await interaction.editReply('⏭️ Canción saltada');
+        }
+        if (interaction.commandName === 'stop') {
+            await interaction.deferReply();
+            distube.stop(interaction);
+            await interaction.editReply('⏹️ Música detenida');
+        }
+        if (interaction.commandName === 'queue') {
+            const queue = distube.getQueue(interaction);
+            if (!queue) return interaction.reply('La cola está vacía');
+            const q = queue.songs.map((s,i)=>`${i+1}. ${s.name} - \`${s.formattedDuration}\``).join('\n');
+            await interaction.reply(`🎶 **Cola:**\n${q}`);
+        }
     }
 
     if (interaction.isButton()) {
@@ -302,28 +326,4 @@ client.on('guildMemberAdd', async member => {
     if (antiraid) {
         if (raidMode) return member.kick('Anti-Raid');
         joinCache.push(Date.now());
-        joinCache = joinCache.filter(time => Date.now() - time < 10000);
-        if (joinCache.length >= 5) {
-            raidMode = true;
-            member.guild.setInvitesDisabled(true);
-            member.guild.systemChannel?.send('🚨 **ANTI-RAID ACTIVADO** Cerrando invitaciones 1 minuto');
-            setTimeout(() => { raidMode = false; member.guild.setInvitesDisabled(false); }, 60000);
-        }
-    }
-
-    // BIENVENIDA EN CANAL
-    if (guildConfig?.bienvenidaCanal) {
-        const canal = member.guild.channels.cache.get(guildConfig.bienvenidaCanal);
-        if (canal) {
-            let msg = guildConfig.bienvenidaMsg.replace('{user}', member).replace('{server}', member.guild.name).replace('{miembros}', member.guild.memberCount);
-            const embed = new EmbedBuilder().setColor(0x00FF00).setTitle('👋 BIENVENIDO').setDescription(msg).setThumbnail(member.user.displayAvatarURL());
-            canal.send({ embeds: [embed] });
-        }
-    }
-
-    // DM BIENVENIDA
-    if (guildConfig?.dmBienvenida) {
-        try {
-            const embed = new EmbedBuilder().setColor(0x00FF00).setTitle(`Bienvenido a ${member.guild.name}`).setDescription('Gracias por unirte! Lee las reglas y disfruta 💎');
-            await member.send({ embeds: [embed] });
-        
+        joinCache = joinCache.filt
