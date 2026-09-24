@@ -71,7 +71,7 @@ module.exports.client = (client) => {
     });
 
     data[guildId].users[userId].xp += 5;
-    data[guildId].users[userId].totalXp += 5; // XP TOTAL NO SE BORRA
+    data[guildId].users[userId].totalXp += 5;
 
     const xpNecesaria = data[guildId].users[userId].level * 100;
     if(data[guildId].users[userId].xp >= xpNecesaria){
@@ -326,7 +326,7 @@ module.exports = async interaction => {
 // BOTONES
 module.exports.buttonHandler = async (interaction) => {
   if (!interaction.isButton()) return;
-  
+
   if (interaction.customId === "create_ticket") {
     const channel = await interaction.guild.channels.create({
       name: `ticket-${interaction.user.username}`,
