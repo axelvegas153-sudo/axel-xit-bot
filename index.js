@@ -4,7 +4,7 @@ const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes } = require
 const fs = require('fs');
 
 const TOKEN = process.env.TOKEN;
-const CLIENT_ID = 'PON_AQUI_TU_CLIENT_ID';
+const CLIENT_ID = '1552176112497336340';
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
