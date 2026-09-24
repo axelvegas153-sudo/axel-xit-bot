@@ -28,13 +28,13 @@ const commands = [
   new SlashCommandBuilder().setName("slowmode").setDescription("Configura slowmode").addIntegerOption(o=>o.setName("segundos").setDescription("Segundos").setMinValue(0).setMaxValue(21600).setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
   // UTILS
-  new SlashCommandBuilder().setName("Mensaje bot").setDescription("Envía un mensaje").addStringOption(o=>o.setName("texto").setDescription("Texto").setRequired(true)),
+  new SlashCommandBuilder().setName("say").setDescription("Envía un mensaje").addStringOption(o=>o.setName("texto").setDescription("Texto").setRequired(true)), // ARREGLADO
   new SlashCommandBuilder().setName("embed").setDescription("Crea un embed").addStringOption(o=>o.setName("texto").setDescription("Texto").setRequired(true)),
   new SlashCommandBuilder().setName("choose").setDescription("Elige una opción").addStringOption(o=>o.setName("opciones").setDescription("Usa | para separar").setRequired(true)),
   new SlashCommandBuilder().setName("8ball").setDescription("Bola mágica").addStringOption(o=>o.setName("pregunta").setDescription("Pregunta").setRequired(true)),
-  new SlashCommandBuilder().setName("Dado Random").setDescription("Lanza un dado").addIntegerOption(o=>o.setName("caras").setDescription("Caras").setMinValue(2).setMaxValue(100)),
+  new SlashCommandBuilder().setName("roll").setDescription("Lanza un dado").addIntegerOption(o=>o.setName("caras").setDescription("Caras").setMinValue(2).setMaxValue(100)), // ARREGLADO
   new SlashCommandBuilder().setName("coinflip").setDescription("Lanza una moneda"),
-  new SlashCommandBuilder().setName("calculadora").setDescription("Calculadora").addStringOption(o=>o.setName("operacion").setDescription("Ejemplo: 5+5").setRequired(true)),
+  new SlashCommandBuilder().setName("calc").setDescription("Calculadora").addStringOption(o=>o.setName("operacion").setDescription("Ejemplo: 5+5").setRequired(true)), // ARREGLADO
   new SlashCommandBuilder().setName("random").setDescription("Número aleatorio").addIntegerOption(o=>o.setName("min").setDescription("Mínimo").setRequired(true)).addIntegerOption(o=>o.setName("max").setDescription("Máximo").setRequired(true)),
 
   // NIVEL + ECONOMIA
