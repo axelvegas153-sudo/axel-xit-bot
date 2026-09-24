@@ -1,12 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html><html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>DARK FF V1 — Panel</title>
-
-  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>DARK FF V1 — Panel</title>  <style>
     * {
       box-sizing: border-box;
       margin: 0;
@@ -146,6 +141,16 @@
       margin-bottom: 18px;
     }
 
+    .info {
+      background: #191923;
+      border: 1px solid #292933;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      color: #aaa;
+      font-size: 13px;
+    }
+
     label {
       display: block;
       margin-bottom: 7px;
@@ -217,232 +222,263 @@
         padding: 20px;
       }
     }
-  </style>
-</head>
-
-<body>
-
-  <header>
+  </style></head><body>  <header>
     <div class="logo">
       DARK <span>FF V1</span>
-    </div>
+    </div><div class="status">
+  ● Bot preparado
+</div>
 
-    <div class="status">
-      ● Bot preparado
-    </div>
-  </header>
+  </header>  <div class="container"><aside>
+  <div class="menu-title">Panel</div>
 
-  <div class="container">
+  <div class="menu">
 
-    <aside>
-      <div class="menu-title">Panel</div>
+    <button class="active" onclick="mostrar('inicio', this)">
+      🏠 Inicio
+    </button>
 
-      <div class="menu">
-        <button class="active" onclick="mostrar('inicio', this)">
-          🏠 Inicio
-        </button>
+    <button onclick="mostrar('bienvenida', this)">
+      👋 Bienvenida
+    </button>
 
-        <button onclick="mostrar('bienvenida', this)">
-          👋 Bienvenida
-        </button>
+    <button onclick="mostrar('despedida', this)">
+      🚪 Despedida
+    </button>
 
-        <button onclick="mostrar('despedida', this)">
-          🚪 Despedida
-        </button>
+    <button onclick="mostrar('moderacion', this)">
+      🛡️ Moderación
+    </button>
 
-        <button onclick="mostrar('moderacion', this)">
-          🛡️ Moderación
-        </button>
+    <button onclick="mostrar('tickets', this)">
+      🎫 Tickets
+    </button>
 
-        <button onclick="mostrar('tickets', this)">
-          🎫 Tickets
-        </button>
-
-        <button onclick="mostrar('niveles', this)">
-          ⭐ Niveles
-        </button>
-      </div>
-    </aside>
-
-    <main>
-
-      <!-- INICIO -->
-      <section id="inicio">
-
-        <div class="welcome">
-          <h1>👋 DARK FF V1</h1>
-          <p>Panel de configuración de tu servidor de Discord.</p>
-        </div>
-
-        <div class="cards">
-
-          <div class="card">
-            <div class="icon">🤖</div>
-            <h3>Bot</h3>
-            <p>DARK FF V1 está preparado.</p>
-          </div>
-
-          <div class="card">
-            <div class="icon">👋</div>
-            <h3>Bienvenida</h3>
-            <p>Configura los mensajes para nuevos miembros.</p>
-          </div>
-
-          <div class="card">
-            <div class="icon">🛡️</div>
-            <h3>Moderación</h3>
-            <p>Administra las funciones de moderación.</p>
-          </div>
-
-          <div class="card">
-            <div class="icon">🎫</div>
-            <h3>Tickets</h3>
-            <p>Próximamente podrás configurar tickets.</p>
-          </div>
-
-        </div>
-
-      </section>
-
-
-      <!-- BIENVENIDA -->
-      <section id="bienvenida" class="hidden">
-
-        <div class="panel">
-          <h2>👋 Bienvenida</h2>
-
-          <p>
-            Configura el mensaje que recibirán los nuevos miembros.
-          </p>
-
-          <label>Canal de bienvenida</label>
-
-          <select id="welcomeChannel">
-            <option value="">Selecciona un canal</option>
-          </select>
-
-          <label>Mensaje</label>
-
-          <textarea id="welcomeMessage"
-            placeholder="¡Bienvenido {usuario} a nuestro servidor!"></textarea>
-
-          <label>Imagen de bienvenida</label>
-
-          <input
-            type="text"
-            id="welcomeImage"
-            placeholder="URL de la imagen">
-
-          <button class="button" onclick="guardarBienvenida()">
-            💾 Guardar configuración
-          </button>
-
-        </div>
-
-      </section>
-
-
-      <!-- DESPEDIDA -->
-      <section id="despedida" class="hidden">
-
-        <div class="panel">
-          <h2>🚪 Despedida</h2>
-
-          <p>
-            Configura el mensaje cuando un miembro abandone el servidor.
-          </p>
-
-          <label>Mensaje</label>
-
-          <textarea
-            id="goodbyeMessage"
-            placeholder="¡Hasta pronto {usuario}! 👋">
-          </textarea>
-
-          <button class="button" onclick="guardarDespedida()">
-            💾 Guardar configuración
-          </button>
-
-        </div>
-
-      </section>
-
-
-      <!-- MODERACIÓN -->
-      <section id="moderacion" class="hidden">
-
-        <div class="panel">
-          <h2>🛡️ Moderación</h2>
-
-          <p>
-            Configuración de herramientas de moderación.
-          </p>
-
-          <label>Canal de logs</label>
-
-          <select>
-            <option>Selecciona un canal</option>
-          </select>
-
-          <button class="button">
-            💾 Guardar
-          </button>
-        </div>
-
-      </section>
-
-
-      <!-- TICKETS -->
-      <section id="tickets" class="hidden">
-
-        <div class="panel">
-          <h2>🎫 Tickets</h2>
-
-          <p>
-            El sistema de tickets se podrá configurar desde aquí.
-          </p>
-
-          <button class="button">
-            ⚙️ Configurar tickets
-          </button>
-        </div>
-
-      </section>
-
-
-      <!-- NIVELES -->
-      <section id="niveles" class="hidden">
-
-        <div class="panel">
-          <h2>⭐ Sistema de niveles</h2>
-
-          <p>
-            Configura el sistema de XP y niveles de DARK FF V1.
-          </p>
-
-          <label>Canal de niveles</label>
-
-          <select>
-            <option>Selecciona un canal</option>
-          </select>
-
-          <button class="button">
-            💾 Guardar configuración
-          </button>
-        </div>
-
-      </section>
-
-      <footer>
-        DARK FF V1 © 2026
-      </footer>
-
-    </main>
+    <button onclick="mostrar('niveles', this)">
+      ⭐ Niveles
+    </button>
 
   </div>
+</aside>
+
+<main>
+
+  <!-- INICIO -->
+  <section id="inicio">
+
+    <div class="welcome">
+      <h1>👋 DARK FF V1</h1>
+      <p>
+        Panel de configuración de tu servidor de Discord.
+      </p>
+    </div>
+
+    <div class="cards">
+
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h3>Bot</h3>
+        <p>DARK FF V1 está preparado.</p>
+      </div>
+
+      <div class="card">
+        <div class="icon">👋</div>
+        <h3>Bienvenida</h3>
+        <p>Configura los mensajes para nuevos miembros.</p>
+      </div>
+
+      <div class="card">
+        <div class="icon">🛡️</div>
+        <h3>Moderación</h3>
+        <p>Administra las funciones de moderación.</p>
+      </div>
+
+      <div class="card">
+        <div class="icon">🎫</div>
+        <h3>Tickets</h3>
+        <p>Próximamente podrás configurar tickets.</p>
+      </div>
+
+    </div>
+
+  </section>
 
 
-  <script>
+  <!-- BIENVENIDA -->
+  <section id="bienvenida" class="hidden">
+
+    <div class="panel">
+
+      <h2>👋 Bienvenida</h2>
+
+      <p>
+        Configura el mensaje que recibirán los nuevos miembros.
+      </p>
+
+      <div class="info">
+        💡 Primero escribe el ID del servidor donde quieres guardar
+        la configuración.
+      </div>
+
+      <label>ID del servidor</label>
+
+      <input
+        type="text"
+        id="guildId"
+        placeholder="Ejemplo: 123456789012345678">
+
+      <label>Canal de bienvenida</label>
+
+      <input
+        type="text"
+        id="welcomeChannel"
+        placeholder="ID del canal de bienvenida">
+
+      <label>Mensaje</label>
+
+      <textarea
+        id="welcomeMessage"
+        placeholder="¡Bienvenido {usuario} a nuestro servidor!"></textarea>
+
+      <label>Imagen de bienvenida</label>
+
+      <input
+        type="text"
+        id="welcomeImage"
+        placeholder="URL de la imagen (opcional)">
+
+      <button class="button" onclick="guardarBienvenida()">
+        💾 Guardar configuración
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- DESPEDIDA -->
+  <section id="despedida" class="hidden">
+
+    <div class="panel">
+
+      <h2>🚪 Despedida</h2>
+
+      <p>
+        Configura el mensaje cuando un miembro abandone el servidor.
+      </p>
+
+      <label>ID del servidor</label>
+
+      <input
+        type="text"
+        id="goodbyeGuildId"
+        placeholder="ID del servidor">
+
+      <label>ID del canal</label>
+
+      <input
+        type="text"
+        id="goodbyeChannel"
+        placeholder="ID del canal de despedida">
+
+      <label>Mensaje</label>
+
+      <textarea
+        id="goodbyeMessage"
+        placeholder="¡Hasta pronto {usuario}! 👋"></textarea>
+
+      <button class="button" onclick="guardarDespedida()">
+        💾 Guardar configuración
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- MODERACIÓN -->
+  <section id="moderacion" class="hidden">
+
+    <div class="panel">
+
+      <h2>🛡️ Moderación</h2>
+
+      <p>
+        Configuración de herramientas de moderación.
+      </p>
+
+      <label>Canal de logs</label>
+
+      <select>
+        <option>Selecciona un canal</option>
+      </select>
+
+      <button class="button">
+        💾 Guardar
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- TICKETS -->
+  <section id="tickets" class="hidden">
+
+    <div class="panel">
+
+      <h2>🎫 Tickets</h2>
+
+      <p>
+        El sistema de tickets se podrá configurar desde aquí.
+      </p>
+
+      <button class="button">
+        ⚙️ Configurar tickets
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- NIVELES -->
+  <section id="niveles" class="hidden">
+
+    <div class="panel">
+
+      <h2>⭐ Sistema de niveles</h2>
+
+      <p>
+        Configura el sistema de XP y niveles de DARK FF V1.
+      </p>
+
+      <label>Canal de niveles</label>
+
+      <select>
+        <option>Selecciona un canal</option>
+      </select>
+
+      <button class="button">
+        💾 Guardar configuración
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <footer>
+    DARK FF V1 © 2026
+  </footer>
+
+</main>
+
+  </div>  <script>
+
+    // ========================================
+    // CAMBIAR SECCIÓN
+    // ========================================
 
     function mostrar(id, boton) {
 
@@ -456,61 +492,187 @@
       ];
 
       secciones.forEach(seccion => {
-        document.getElementById(seccion).classList.add("hidden");
+        document
+          .getElementById(seccion)
+          .classList.add("hidden");
       });
 
-      document.getElementById(id).classList.remove("hidden");
+      document
+        .getElementById(id)
+        .classList.remove("hidden");
 
-      document.querySelectorAll(".menu button")
+      document
+        .querySelectorAll(".menu button")
         .forEach(btn => btn.classList.remove("active"));
 
       boton.classList.add("active");
     }
 
 
-    function guardarBienvenida() {
+    // ========================================
+    // GUARDAR BIENVENIDA
+    // ========================================
 
-      const canal = document.getElementById("welcomeChannel").value;
-      const mensaje = document.getElementById("welcomeMessage").value;
-      const imagen = document.getElementById("welcomeImage").value;
+    async function guardarBienvenida() {
 
-      if (!canal || !mensaje) {
-        alert("❌ Selecciona un canal y escribe un mensaje.");
+      const guildId =
+        document.getElementById("guildId").value.trim();
+
+      const channelId =
+        document.getElementById("welcomeChannel").value.trim();
+
+      const message =
+        document.getElementById("welcomeMessage").value.trim();
+
+      const image =
+        document.getElementById("welcomeImage").value.trim();
+
+
+      if (!guildId) {
+        alert("❌ Escribe el ID del servidor.");
         return;
       }
 
-      localStorage.setItem(
-        "darkff_bienvenida",
-        JSON.stringify({
-          canal: canal,
-          mensaje: mensaje,
-          imagen: imagen
-        })
-      );
+      if (!channelId) {
+        alert("❌ Escribe el ID del canal.");
+        return;
+      }
 
-      alert("✅ Configuración de bienvenida guardada.");
+      if (!message) {
+        alert("❌ Escribe un mensaje de bienvenida.");
+        return;
+      }
+
+
+      try {
+
+        const respuesta = await fetch("/api/bienvenida", {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            guildId: guildId,
+            channelId: channelId,
+            message: message,
+            image: image
+          })
+
+        });
+
+
+        const resultado = await respuesta.json();
+
+
+        if (resultado.success) {
+
+          alert(
+            "✅ Configuración de bienvenida guardada correctamente."
+          );
+
+        } else {
+
+          alert(
+            "❌ " + (resultado.message || "No se pudo guardar.")
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(
+          "❌ No se pudo conectar con DARK FF V1."
+        );
+
+      }
+
     }
 
 
-    function guardarDespedida() {
+    // ========================================
+    // GUARDAR DESPEDIDA
+    // ========================================
 
-      const mensaje =
-        document.getElementById("goodbyeMessage").value;
+    async function guardarDespedida() {
 
-      if (!mensaje) {
+      const guildId =
+        document.getElementById("goodbyeGuildId").value.trim();
+
+      const channelId =
+        document.getElementById("goodbyeChannel").value.trim();
+
+      const message =
+        document.getElementById("goodbyeMessage").value.trim();
+
+
+      if (!guildId) {
+        alert("❌ Escribe el ID del servidor.");
+        return;
+      }
+
+      if (!channelId) {
+        alert("❌ Escribe el ID del canal.");
+        return;
+      }
+
+      if (!message) {
         alert("❌ Escribe un mensaje.");
         return;
       }
 
-      localStorage.setItem(
-        "darkff_despedida",
-        mensaje
-      );
 
-      alert("✅ Configuración de despedida guardada.");
+      try {
+
+        const respuesta = await fetch("/api/despedida", {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            guildId: guildId,
+            channelId: channelId,
+            message: message
+          })
+
+        });
+
+
+        const resultado = await respuesta.json();
+
+
+        if (resultado.success) {
+
+          alert(
+            "✅ Configuración de despedida guardada correctamente."
+          );
+
+        } else {
+
+          alert(
+            "❌ " + (resultado.message || "No se pudo guardar.")
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        alert(
+          "❌ No se pudo conectar con DARK FF V1."
+        );
+
+      }
+
     }
 
-  </script>
-
-</body>
-  </html>
+  </script></body>
+</html>
