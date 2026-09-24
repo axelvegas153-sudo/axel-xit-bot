@@ -55,8 +55,21 @@ module.exports.client = (client) => {
     // QUITAR AFK AL HABLAR
     if(data[guildId].users[userId].afk){
       const tiempo = Math.floor((Date.now() - data[guildId].users[userId].afk.time) / 1000 / 60);
+      const motivoAnterior = data[guildId].users[userId].afk.motivo;
       delete data[guildId].users[userId].afk;
-      message.reply(`✅ ${t.back} ${message.author}! Estuviste AFK por ${tiempo} min`);
+
+      const embed = new EmbedBuilder()
+      .setAuthor({ name: message.author.displayName, iconURL: message.author.displayAvatarURL() })
+      .setTitle("📜 ESTADO AUSENTE DESACTIVADO")
+      .setDescription(`**${message.author.username}** ya volvió`)
+      .addFields(
+          { name: "⏰ Tiempo ausente", value: `${tiempo} minutos`, inline: true },
+          { name: "📝 Motivo anterior", value: motivoAnterior, inline: true }
+        )
+      .setColor(0x00ff00)
+      .setTimestamp();
+
+      message.channel.send({ embeds: [embed] });
     }
 
     // AVISAR SI MENCIONAN A ALGUIEN AFK
@@ -66,7 +79,18 @@ module.exports.client = (client) => {
         const tiempo = Math.floor((Date.now() - afkData.time) / 1000 / 60);
         const uLang = data[guildId].users[u.id].lang || "es";
         const tu = lang[uLang];
-        message.reply(`💤 **${u.username}** ${tu.afk_mention}: ${afkData.motivo}\n${tu.lleva} ${tiempo} ${tu.min}`);
+
+        const embed = new EmbedBuilder()
+        .setTitle("💤 USUARIO AUSENTE")
+        .setDescription(`**${u.username}** está AFK`)
+        .addFields(
+            { name: "📝 Motivo", value: afkData.motivo, inline: true },
+            { name: "⏰ Lleva", value: `${tiempo} min ausente`, inline: true }
+          )
+        .setColor(0xffaa00)
+        .setThumbnail(u.displayAvatarURL());
+
+        message.reply({ embeds: [embed] });
       }
     });
 
@@ -101,7 +125,23 @@ module.exports = async interaction => {
 
     // ===== BASICOS =====
     if (cmd === "ping") return interaction.editReply(`🏓 Pong! ${interaction.client.ws.ping}ms`);
-    if (cmd === "help") return interaction.editReply({ embeds: [new EmbedBuilder().setTitle("🤖 DARK FF V1").setDescription("Bot público de Discord\nTengo 50+ comandos\nUsa `/help <comando>` para más info.").addFields({name:"📊 ESTADISTICAS", value:"`rank` `leaderboard` `xp`"}, {name:"🎮 DIVERSION", value:"`ship` `punch` `push` `8ball`"}, {name:"🤖 IA", value:"`ia` `ask` `crear`"}, {name:"🔨 MOD", value:"`kick` `ban` `clear` `timeout`"}, {name:"💰 ECONOMIA", value:"`daily` `balance` `pay` `work`"}, {name:"🎫 UTILS", value:"`ticket-setup` `afk` `birthday-set`"})].setColor(0x5865F2) });
+    if (cmd === "help") {
+      const embed = new EmbedBuilder()
+      .setTitle("🤖 DARK FF V1 - LISTA DE COMANDOS")
+      .setDescription("Aquí tienes todos mis comandos. Usa `/` para verlos")
+      .setColor("Blurple")
+      .setThumbnail(interaction.client.user.displayAvatarURL())
+      .addFields(
+          { name: "📊 INFO", value: "`/help` `/ping` `/botinfo` `/serverinfo` `/userinfo` `/avatar` `/servericon` `/members` `/roles` `/channels`", inline: false },
+          { name: "🛡️ MODERACIÓN", value: "`/kick` `/ban` `/clear` `/timeout` `/untimeout`", inline: false },
+          { name: "⚙️ UTILS", value: "`/say` `/choose` `/8ball` `/roll` `/coinflip` `/calc` `/random`", inline: false },
+          { name: "💰 NIVEL + ECONOMIA", value: "`/rank` `/xp` `/leaderboard` `/daily` `/balance` `/pay` `/work` `/gamble` `/profile`", inline: false },
+          { name: "🔥 DARK FF EXCLUSIVOS", value: "`/ia` `/ask` `/crear` `/funar` `/push` `/punch` `/ship` `/afk` `/lenguaje` `/birthday-set` `/birthday-setup` `/ticket-setup` `/ticket-close`", inline: false }
+        )
+      .setFooter({ text: `Solicitado por ${interaction.user.username}`, iconURL: interaction.user.displayAvatarURL() })
+      .setTimestamp();
+      return interaction.editReply({ embeds: [embed] });
+    }
     if (cmd === "botinfo") return interaction.editReply(`🤖 **DARK FF V1**\n📡 Ping: ${interaction.client.ws.ping}ms\n⚙️ Discord.js v14\n📦 ${require("./commands").length} comandos`);
 
     // ===== INFO =====
@@ -167,12 +207,22 @@ module.exports = async interaction => {
       return interaction.editReply(idioma === "es"? "🌎 Ahora hablo Español 🇪🇸" : "🌎 Now I speak English 🇺🇸");
     }
 
-    // ===== AFK =====
+    // ===== AFK BONITO =====
     if (cmd === "afk") {
       const motivo = interaction.options.getString("motivo") || "No especificado";
       data[guildId].users[userId].afk = { motivo: motivo, time: Date.now() };
       save(data);
-      return interaction.editReply({ embeds: [new EmbedBuilder().setAuthor({ name: interaction.user.displayName, iconURL: interaction.user.displayAvatarURL() }).setDescription(`**${t.afk_set}**`).addFields({ name: t.afk_motivo, value: motivo }).setColor(0xffaa00).setFooter({ text: t.afk_aviso })] });
+
+      const embed = new EmbedBuilder()
+      .setAuthor({ name: interaction.user.displayName, iconURL: interaction.user.displayAvatarURL() })
+      .setTitle("📜 ESTADO AUSENTE ACTIVADO")
+      .setDescription(`**${interaction.user.username}** ahora está AFK`)
+      .addFields({ name: "📝 Motivo", value: motivo })
+      .setColor(0xffaa00)
+      .setTimestamp()
+      .setFooter({ text: "Avisaré a quienes te mencionen" });
+
+      return interaction.editReply({ embeds: [embed] });
     }
 
     // ===== DIVERSION =====
@@ -192,26 +242,30 @@ module.exports = async interaction => {
     if (cmd === "push") {
       const u = interaction.options.getUser("usuario");
       if (u.id === interaction.user.id) return interaction.editReply("🤦 No te puedes empujar a ti mismo");
-      const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`push_back_${u.id}`).setLabel("Empujar de vuelta").setStyle(ButtonStyle.Secondary).setEmoji("👊"));
       const embed = new EmbedBuilder().setTitle("👊 EMPUJÓN").setDescription(`**${interaction.user.username}** empuja a **${u.username}**`).setImage("https://media.tenor.com/ZK1JxQZQZQZ.gif").setColor(0xff0000);
-      return interaction.editReply({ embeds: [embed], components: [row] });
+      return interaction.editReply({ embeds: [embed] });
     }
 
     if (cmd === "punch") {
       const u = interaction.options.getUser("usuario");
       if (u.id === interaction.user.id) return interaction.editReply("🤦 No te puedes pegar a ti mismo");
-      const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`punch_back_${u.id}`).setLabel("Golpear de vuelta").setStyle(ButtonStyle.Danger).setEmoji("👊"));
-      const embed = new EmbedBuilder().setTitle(`${interaction.user.username} ataca a ${u.username}.`).setImage("https://media1.tenor.com/m/xyz123/Baki-punch.gif").setFooter({text: "Anime: Baki Hanma"}).setColor(0x000);
-      return interaction.editReply({ embeds: [embed], components: [row] });
+      const gifs = [
+        "https://media.tenor.com/8oZ0mQf8wEAAAAAd/anime-punch.gif",
+        "https://media.tenor.com/5YbR5b4w0kAAAAAd/baki-punch.gif",
+        "https://media.tenor.com/oQ2k3Z2k4EAAAAAd/saitama-punch.gif"
+      ];
+      const randomGif = gifs[Math.floor(Math.random() * gifs.length)];
+      const embed = new EmbedBuilder().setTitle(`${interaction.user.username} ataca a ${u.username}`).setDescription(`💥 ${interaction.user} le metió un tremendo golpe a ${u}`).setImage(randomGif).setFooter({text: "Anime: Baki Hanma"}).setColor(0xff0000);
+      return interaction.editReply({ content: `${u}`, embeds: [embed] });
     }
 
     if (cmd === "ship") {
       const p1 = interaction.options.getUser("persona1");
       const p2 = interaction.options.getUser("persona2");
       const shipName = (p1.username.slice(0,3) + p2.username.slice(-3)).toLowerCase();
-      const porcentaje = (p1.id + p2.id).split('').reduce((a,b)=>a+b.charCodeAt(0),0) % 101;
-      let frase = porcentaje > 50? "Hay química entre ustedes 💗" : t.ship_oppose;
-      const embed = new EmbedBuilder().setAuthor({ name: `${p1.username} ❤️ ${p2.username}` }).addFields({ name: `❤️ | ${t.ship_name}`, value: `**${shipName}**`, inline: true }, { name: `❤️ | ${t.ship_comp}`, value: `**${porcentaje}%**`, inline: true }).setDescription(frase).setImage(`https://api.popcat.xyz/ship?user1=${p1.displayAvatarURL({extension: 'png'})}&user2=${p2.displayAvatarURL({extension: 'png'})}`).setColor(porcentaje > 50? 0xff69b4 : 0xe74c3c);
+      const porcentaje = Math.floor(Math.random() * 101);
+      let frase = porcentaje > 70? "💖 ALMA GEMELAS!" : porcentaje > 50? "❤️ Hay química entre ustedes" : porcentaje > 30? "💛 Hay algo ahí..." : "💔 No hay química...";
+      const embed = new EmbedBuilder().setTitle(`💘 Ship: ${p1.username} x ${p2.username}`).setThumbnail(p1.displayAvatarURL()).addFields({ name: `Pareja`, value: `${p1} ❤️ ${p2}`, inline: false }, { name: `Nombre del Ship`, value: `\`${shipName}\``, inline: true }, { name: `Compatibilidad`, value: `\`${porcentaje}%\``, inline: true }, { name: `Resultado`, value: frase, inline: false }).setImage(`https://api.popcat.xyz/ship?user1=${p1.displayAvatarURL({extension: 'png'})}&user2=${p2.displayAvatarURL({extension: 'png'})}`).setColor(porcentaje > 50? 0xff69b4 : 0xe74c3c);
       return interaction.editReply({ embeds: [embed] });
     }
 
@@ -231,7 +285,10 @@ module.exports = async interaction => {
     }
 
     if (cmd === "crear") {
-      const embed = new EmbedBuilder().setTitle("🎨 IMAGEN GENERADA").setDescription(`**Prompt:** ${interaction.options.getString("prompt")}`).setImage(`https://image.pollinations.ai/prompt/${encodeURIComponent(interaction.options.getString("prompt") + ", 4k, anime style")}`).setColor(0x9b59b6);
+      const prompt = interaction.options.getString("prompt");
+      await interaction.editReply("🎨 Generando imagen, espera 10s...");
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ", 4k, anime style, detailed")}?width=1024&height=1024&model=flux`;
+      const embed = new EmbedBuilder().setTitle("🎨 IMAGEN GENERADA").setDescription(`**Prompt:** ${prompt}`).setImage(imageUrl).setColor(0x9b59b6).setFooter({ text: `Solicitado por ${interaction.user.username}` });
       return interaction.editReply({ embeds: [embed] });
     }
 
@@ -328,58 +385,25 @@ module.exports.buttonHandler = async (interaction) => {
   if (!interaction.isButton()) return;
 
   if (interaction.customId === "create_ticket") {
-    const channel = await interaction.guild.channels.create({
-      name: `ticket-${interaction.user.username}`,
+    const guild = interaction.guild;
+    const user = interaction.user;
+
+    const ticketChannel = await guild.channels.create({
+      name: `ticket-${user.username}`,
       type: ChannelType.GuildText,
       permissionOverwrites: [
-        { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
       ],
     });
-    const closeRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId("close_ticket").setLabel("Cerrar Ticket").setStyle(ButtonStyle.Danger).setEmoji("🔒"));
-    await channel.send({ content: `<@${interaction.user.id}>`, embeds: [new EmbedBuilder().setTitle(`Ticket de ${interaction.user.username}`).setDescription("Un staff te atendera pronto.\nUsa `/ticket-close` o el boton para cerrar.")], components: [closeRow] });
-    await interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
-  }
-  
-  if (interaction.customId === "close_ticket") {
-    await interaction.reply("🔒 Cerrando ticket en 5 segundos...");
-    setTimeout(() => interaction.channel.delete(), 5000);
-  }
-  
-  if (interaction.customId.startsWith("punch_back_")) {
-    const targetId = interaction.customId.split("_")[2];
-    const target = await interaction.client.users.fetch(targetId);
-    await interaction.update({ content: `**${interaction.user.username}** le devuelve el golpe a **${target.username}** 💥` });
-  }
-  
-  if (interaction.customId.startsWith("push_back_")) {
-    const targetId = interaction.customId.split("_")[2];
-    const target = await interaction.client.users.fetch(targetId);
-    await interaction.update({ content: `**${interaction.user.username}** le devuelve el empujón a **${target.username}** 👊` });
-  }
-}
 
-// REVISAR CUMPLEAÑOS CADA DIA
-module.exports.birthdayChecker = (client) => {
-  setInterval(async () => {
-    const data = db();
-    const hoy = new Date();
-    const fechaHoy = `${String(hoy.getDate()).padStart(2,'0')}/${String(hoy.getMonth()+1).padStart(2,'0')}`;
-    for(const guildId in data){
-      if(!data[guildId].birthdayChannel) continue;
-      const canal = await client.channels.fetch(data[guildId].birthdayChannel).catch(()=>null);
-      if(!canal) continue;
-      for(const userId in data[guildId].users){
-        const userData = data[guildId].users[userId];
-        if(userData.birthday === fechaHoy){
-          const member = await canal.guild.members.fetch(userId).catch(()=>null);
-          if(!member) continue;
-          if(data[guildId].birthdayRole) await member.roles.add(data[guildId].birthdayRole).catch(()=>{});
-          const uLang = userData.lang || "es";
-          const tu = lang[uLang];
-          canal.send({ content: `🎈 @everyone`, embeds: [new EmbedBuilder().setTitle(`🎉 ${tu.birthday_happy} 🎉`).setDescription(`${tu.birthday_text} <@${userId}>! 🥳🎂`).setColor(0xff69b4)] });
-        }
-      }
-    }
-  }, 1000 * 60 * 60 * 24);
+    await ticketChannel.send({
+      content: `${user}`,
+      embeds: [
+        new EmbedBuilder().setTitle(`Ticket de ${user.username}`).setDescription("Un staff te atenderá pronto. Describe tu problema.").setColor("Green")
+      ]
+    });
+
+    await interaction.reply({ content: `✅ Ticket creado: ${ticketChannel}`, ephemeral: true });
+  }
 }
