@@ -1,13 +1,14 @@
 {
-  "name": "faisal-bot",
+  "name": "dark-ff-bot",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "discord.js": "^14.27.0",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "discord.js": "^14.15.3",
+    "node-fetch": "^2.7.0",
+    "@discordjs/rest": "^2.3.0",
+    "discord-api-types": "^0.37.50"
   }
 }
