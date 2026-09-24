@@ -32,7 +32,7 @@ process.exit(1);
 }
 
 // ========================================
-// CLIENTE DE DISCORD
+// CLIENTE DISCORD
 // ========================================
 
 const client = new Client({
@@ -47,7 +47,7 @@ GatewayIntentBits.MessageContent
 client.commands = new Collection();
 
 // ========================================
-// CARGAR BASE DE DATOS
+// BASE DE DATOS
 // ========================================
 
 const DB_PATH = path.join(__dirname, "database.json");
@@ -93,20 +93,25 @@ const commandsPath = path.join(__dirname, "commands");
 const commands = [];
 
 if (fs.existsSync(commandsPath)) {
+
 const commandFiles = fs
 .readdirSync(commandsPath)
 .filter(file => file.endsWith(".js"));
 
 for (const file of commandFiles) {
+
 try {
-const filePath = path.join(commandsPath, file);
-const commandModule = require(filePath);
+
+  const filePath = path.join(commandsPath, file);
+
+  const commandModule = require(filePath);
 
   const commandList = Array.isArray(commandModule)
     ? commandModule
     : [commandModule];
 
   for (const command of commandList) {
+
     if (!command.data || !command.execute) {
       console.warn(`⚠️ Comando inválido en ${file}`);
       continue;
@@ -115,28 +120,39 @@ const commandModule = require(filePath);
     const commandName = command.data.name;
 
     client.commands.set(commandName, command);
+
     commands.push(command.data.toJSON());
 
     console.log(`✅ Comando cargado: /${commandName}`);
   }
+
 } catch (error) {
+
   console.error(`❌ Error cargando ${file}:`, error);
+
 }
 
 }
+
 } else {
+
 console.warn("⚠️ No existe la carpeta commands.");
+
 }
 
 // ========================================
-// REGISTRAR COMANDOS SLASH
+// REGISTRAR COMANDOS
 // ========================================
 
 async function registrarComandos() {
+
 try {
+
 console.log("🔄 Registrando comandos globales...");
 
-const rest = new REST({ version: "10" }).setToken(TOKEN);
+const rest = new REST({
+  version: "10"
+}).setToken(TOKEN);
 
 await rest.put(
   Routes.applicationCommands(CLIENT_ID),
@@ -148,8 +164,11 @@ await rest.put(
 console.log(`✅ ${commands.length} comandos registrados.`);
 
 } catch (error) {
+
 console.error("❌ Error registrando comandos:", error);
+
 }
+
 }
 
 // ========================================
@@ -157,14 +176,17 @@ console.error("❌ Error registrando comandos:", error);
 // ========================================
 
 client.once(Events.ClientReady, async readyClient => {
+
 console.log("");
 console.log("========================================");
 console.log("🤖 DARK FF V1");
 console.log("========================================");
+
 console.log("✅ Bot: ${readyClient.user.tag}");
 console.log("🌐 Servidores: ${readyClient.guilds.cache.size}");
 console.log("📜 Comandos: ${client.commands.size}");
 console.log("🏓 Ping: ${readyClient.ws.ping}ms");
+
 console.log("========================================");
 
 readyClient.user.setPresence({
@@ -178,20 +200,25 @@ status: "online"
 });
 
 await registrarComandos();
+
 });
 
 // ========================================
-// INTERACCIONES
+// COMANDOS SLASH
 // ========================================
 
 client.on(Events.InteractionCreate, async interaction => {
+
 if (!interaction.isChatInputCommand()) return;
 
-const command = client.commands.get(interaction.commandName);
+const command = client.commands.get(
+interaction.commandName
+);
 
 if (!command) {
+
 console.warn(
-"⚠️ No se encontró /${interaction.commandName}"
+  `⚠️ No se encontró /${interaction.commandName}`
 );
 
 return;
@@ -199,11 +226,17 @@ return;
 }
 
 try {
-await command.execute(interaction, client);
+
+await command.execute(
+  interaction,
+  client
+);
+
 } catch (error) {
+
 console.error(
-"❌ Error ejecutando /${interaction.commandName}:",
-error
+  `❌ Error ejecutando /${interaction.commandName}:`,
+  error
 );
 
 const mensaje = {
@@ -211,78 +244,260 @@ const mensaje = {
   ephemeral: true
 };
 
-if (interaction.replied || interaction.deferred) {
-  await interaction.followUp(mensaje).catch(() => {});
+if (
+  interaction.replied ||
+  interaction.deferred
+) {
+
+  await interaction
+    .followUp(mensaje)
+    .catch(() => {});
+
 } else {
-  await interaction.reply(mensaje).catch(() => {});
+
+  await interaction
+    .reply(mensaje)
+    .catch(() => {});
+
 }
 
 }
+
 });
 
 // ========================================
-// SERVIDOR WEB PARA RAILWAY
+// 👋 BIENVENIDA AUTOMÁTICA
+// ========================================
+
+client.on(Events.GuildMemberAdd, async member => {
+
+try {
+
+const db = cargarDB();
+
+const configuracion =
+  db[member.guild.id]?.bienvenida;
+
+if (!configuracion) {
+  return;
+}
+
+if (!configuracion.activa) {
+  return;
+}
+
+if (!configuracion.canal) {
+  return;
+}
+
+const canal = member.guild.channels.cache.get(
+  configuracion.canal
+);
+
+if (!canal) {
+
+  console.warn(
+    `⚠️ No se encontró el canal de bienvenida en ${member.guild.name}`
+  );
+
+  return;
+
+}
+
+let mensaje =
+  configuracion.mensaje ||
+  "¡Bienvenido {usuario}! 👋";
+
+// Reemplazar variables
+
+mensaje = mensaje
+  .replace(/{usuario}/g, `<@${member.id}>`)
+  .replace(/{nombre}/g, member.user.username)
+  .replace(/{servidor}/g, member.guild.name)
+  .replace(
+    /{miembros}/g,
+    member.guild.memberCount.toString()
+  );
+
+// Enviar mensaje
+
+await canal.send({
+  content: mensaje
+});
+
+console.log(
+  `👋 Bienvenida enviada a ${member.user.tag} en ${member.guild.name}`
+);
+
+} catch (error) {
+
+console.error(
+  "❌ Error enviando bienvenida:",
+  error
+);
+
+}
+
+});
+
+// ========================================
+// 🚪 DESPEDIDA AUTOMÁTICA
+// ========================================
+
+client.on(Events.GuildMemberRemove, async member => {
+
+try {
+
+const db = cargarDB();
+
+const configuracion =
+  db[member.guild.id]?.despedida;
+
+if (!configuracion) {
+  return;
+}
+
+if (!configuracion.activa) {
+  return;
+}
+
+if (!configuracion.canal) {
+  return;
+}
+
+const canal = member.guild.channels.cache.get(
+  configuracion.canal
+);
+
+if (!canal) {
+  return;
+}
+
+let mensaje =
+  configuracion.mensaje ||
+  "Adiós {usuario}. 👋";
+
+mensaje = mensaje
+  .replace(/{usuario}/g, member.user.username)
+  .replace(/{nombre}/g, member.user.username)
+  .replace(/{servidor}/g, member.guild.name)
+  .replace(
+    /{miembros}/g,
+    member.guild.memberCount.toString()
+  );
+
+await canal.send({
+  content: mensaje
+});
+
+console.log(
+  `🚪 Despedida enviada por ${member.user.tag} en ${member.guild.name}`
+);
+
+} catch (error) {
+
+console.error(
+  "❌ Error enviando despedida:",
+  error
+);
+
+}
+
+});
+
+// ========================================
+// 🌐 SERVIDOR WEB PARA RAILWAY
 // ========================================
 
 const server = http.createServer((req, res) => {
-// --------------------------------------
-// CORS
-// --------------------------------------
 
-res.setHeader("Access-Control-Allow-Origin", "*");
+// ======================================
+// CORS
+// ======================================
+
+res.setHeader(
+"Access-Control-Allow-Origin",
+"*"
+);
+
 res.setHeader(
 "Access-Control-Allow-Methods",
 "GET, POST, OPTIONS"
 );
+
 res.setHeader(
 "Access-Control-Allow-Headers",
 "Content-Type"
 );
 
-// --------------------------------------
+// ======================================
 // OPTIONS
-// --------------------------------------
+// ======================================
 
 if (req.method === "OPTIONS") {
+
 res.writeHead(204);
 res.end();
+
 return;
+
 }
 
-// --------------------------------------
+// ======================================
 // PÁGINA PRINCIPAL
-// --------------------------------------
+// ======================================
 
-if (req.method === "GET" && req.url === "/") {
-const htmlPath = path.join(__dirname, "index.html");
+if (
+req.method === "GET" &&
+req.url === "/"
+) {
+
+const htmlPath =
+  path.join(__dirname, "index.html");
 
 if (!fs.existsSync(htmlPath)) {
+
   res.writeHead(404, {
-    "Content-Type": "text/plain; charset=utf-8"
+    "Content-Type":
+      "text/plain; charset=utf-8"
   });
 
-  res.end("No se encontró index.html");
+  res.end(
+    "No se encontró index.html"
+  );
+
   return;
 }
 
-const html = fs.readFileSync(htmlPath, "utf8");
+const html =
+  fs.readFileSync(
+    htmlPath,
+    "utf8"
+  );
 
 res.writeHead(200, {
-  "Content-Type": "text/html; charset=utf-8"
+  "Content-Type":
+    "text/html; charset=utf-8"
 });
 
 res.end(html);
+
 return;
 
 }
 
-// --------------------------------------
-// ESTADO DEL BOT
-// --------------------------------------
+// ======================================
+// ESTADO
+// ======================================
 
-if (req.method === "GET" && req.url === "/api/status") {
+if (
+req.method === "GET" &&
+req.url === "/api/status"
+) {
+
 res.writeHead(200, {
-"Content-Type": "application/json; charset=utf-8"
+  "Content-Type":
+    "application/json; charset=utf-8"
 });
 
 res.end(
@@ -290,11 +505,16 @@ res.end(
     online: true,
     bot: "DARK FF V1",
     panel: true,
-    servers: client.guilds.cache.size,
-    commands: client.commands.size,
-    ping: client.ws.ping,
-    uptime: client.uptime,
-    timestamp: Date.now()
+    servers:
+      client.guilds.cache.size,
+    commands:
+      client.commands.size,
+    ping:
+      client.ws.ping,
+    uptime:
+      client.uptime,
+    timestamp:
+      Date.now()
   })
 );
 
@@ -302,43 +522,52 @@ return;
 
 }
 
-// --------------------------------------
+// ======================================
 // OBTENER BIENVENIDA
-// --------------------------------------
+// ======================================
 
 if (
 req.method === "GET" &&
-req.url.startsWith("/api/bienvenida/")
+req.url.startsWith(
+"/api/bienvenida/"
+)
 ) {
-const guildId = req.url.split("/").pop();
+
+const guildId =
+  req.url.split("/").pop();
 
 const db = cargarDB();
 
-const bienvenida = db[guildId]?.bienvenida || {
-  activa: false,
-  canal: "",
-  mensaje: "",
-  imagen: ""
-};
+const bienvenida =
+  db[guildId]?.bienvenida || {
+    activa: false,
+    canal: "",
+    mensaje: "",
+    imagen: ""
+  };
 
 res.writeHead(200, {
-  "Content-Type": "application/json; charset=utf-8"
+  "Content-Type":
+    "application/json; charset=utf-8"
 });
 
-res.end(JSON.stringify(bienvenida));
+res.end(
+  JSON.stringify(bienvenida)
+);
 
 return;
 
 }
 
-// --------------------------------------
+// ======================================
 // GUARDAR BIENVENIDA
-// --------------------------------------
+// ======================================
 
 if (
 req.method === "POST" &&
 req.url === "/api/bienvenida"
 ) {
+
 let body = "";
 
 req.on("data", chunk => {
@@ -346,8 +575,11 @@ req.on("data", chunk => {
 });
 
 req.on("end", () => {
+
   try {
-    const data = JSON.parse(body || "{}");
+
+    const data =
+      JSON.parse(body || "{}");
 
     const {
       guildId,
@@ -357,14 +589,17 @@ req.on("end", () => {
     } = data;
 
     if (!guildId) {
+
       res.writeHead(400, {
-        "Content-Type": "application/json; charset=utf-8"
+        "Content-Type":
+          "application/json; charset=utf-8"
       });
 
       res.end(
         JSON.stringify({
           success: false,
-          message: "Falta el ID del servidor."
+          message:
+            "Falta el ID del servidor."
         })
       );
 
@@ -378,82 +613,112 @@ req.on("end", () => {
     }
 
     db[guildId].bienvenida = {
+
       activa: true,
-      canal: channelId || "",
-      mensaje: message || "¡Bienvenido {usuario}!",
-      imagen: image || ""
+
+      canal:
+        channelId || "",
+
+      mensaje:
+        message ||
+        "¡Bienvenido {usuario}! 👋",
+
+      imagen:
+        image || ""
+
     };
 
-    const guardado = guardarDB(db);
+    const guardado =
+      guardarDB(db);
 
     res.writeHead(200, {
-      "Content-Type": "application/json; charset=utf-8"
+      "Content-Type":
+        "application/json; charset=utf-8"
     });
 
     res.end(
       JSON.stringify({
         success: guardado,
+
         message: guardado
           ? "✅ Bienvenida guardada correctamente."
           : "❌ No se pudo guardar."
       })
     );
+
   } catch (error) {
-    console.error("❌ Error en API bienvenida:", error);
+
+    console.error(
+      "❌ Error en API bienvenida:",
+      error
+    );
 
     res.writeHead(400, {
-      "Content-Type": "application/json; charset=utf-8"
+      "Content-Type":
+        "application/json; charset=utf-8"
     });
 
     res.end(
       JSON.stringify({
         success: false,
-        message: "Datos inválidos."
+        message:
+          "Datos inválidos."
       })
     );
+
   }
+
 });
 
 return;
 
 }
 
-// --------------------------------------
+// ======================================
 // OBTENER DESPEDIDA
-// --------------------------------------
+// ======================================
 
 if (
 req.method === "GET" &&
-req.url.startsWith("/api/despedida/")
+req.url.startsWith(
+"/api/despedida/"
+)
 ) {
-const guildId = req.url.split("/").pop();
+
+const guildId =
+  req.url.split("/").pop();
 
 const db = cargarDB();
 
-const despedida = db[guildId]?.despedida || {
-  activa: false,
-  canal: "",
-  mensaje: ""
-};
+const despedida =
+  db[guildId]?.despedida || {
+    activa: false,
+    canal: "",
+    mensaje: ""
+  };
 
 res.writeHead(200, {
-  "Content-Type": "application/json; charset=utf-8"
+  "Content-Type":
+    "application/json; charset=utf-8"
 });
 
-res.end(JSON.stringify(despedida));
+res.end(
+  JSON.stringify(despedida)
+);
 
 return;
 
 }
 
-// --------------------------------------
+// ======================================
 // GUARDAR DESPEDIDA
-// --------------------------------------
+// ======================================
 
 if (
 req.method === "POST" &&
 req.url === "/api/despedida"
 ) {
+
 let body = "";
 
 req.on("data", chunk => {
@@ -461,8 +726,11 @@ req.on("data", chunk => {
 });
 
 req.on("end", () => {
+
   try {
-    const data = JSON.parse(body || "{}");
+
+    const data =
+      JSON.parse(body || "{}");
 
     const {
       guildId,
@@ -471,14 +739,17 @@ req.on("end", () => {
     } = data;
 
     if (!guildId) {
+
       res.writeHead(400, {
-        "Content-Type": "application/json; charset=utf-8"
+        "Content-Type":
+          "application/json; charset=utf-8"
       });
 
       res.end(
         JSON.stringify({
           success: false,
-          message: "Falta el ID del servidor."
+          message:
+            "Falta el ID del servidor."
         })
       );
 
@@ -492,87 +763,141 @@ req.on("end", () => {
     }
 
     db[guildId].despedida = {
+
       activa: true,
-      canal: channelId || "",
-      mensaje: message || "Adiós {usuario}."
+
+      canal:
+        channelId || "",
+
+      mensaje:
+        message ||
+        "Adiós {usuario}. 👋"
+
     };
 
-    const guardado = guardarDB(db);
+    const guardado =
+      guardarDB(db);
 
     res.writeHead(200, {
-      "Content-Type": "application/json; charset=utf-8"
+      "Content-Type":
+        "application/json; charset=utf-8"
     });
 
     res.end(
       JSON.stringify({
         success: guardado,
+
         message: guardado
           ? "✅ Despedida guardada correctamente."
           : "❌ No se pudo guardar."
       })
     );
+
   } catch (error) {
-    console.error("❌ Error en API despedida:", error);
+
+    console.error(
+      "❌ Error en API despedida:",
+      error
+    );
 
     res.writeHead(400, {
-      "Content-Type": "application/json; charset=utf-8"
+      "Content-Type":
+        "application/json; charset=utf-8"
     });
 
     res.end(
       JSON.stringify({
         success: false,
-        message: "Datos inválidos."
+        message:
+          "Datos inválidos."
       })
     );
+
   }
+
 });
 
 return;
 
 }
 
-// --------------------------------------
+// ======================================
 // RUTA NO ENCONTRADA
-// --------------------------------------
+// ======================================
 
 res.writeHead(404, {
-"Content-Type": "application/json; charset=utf-8"
+"Content-Type":
+"application/json; charset=utf-8"
 });
 
 res.end(
 JSON.stringify({
 success: false,
-message: "Ruta no encontrada."
+message:
+"Ruta no encontrada."
 })
 );
+
 });
 
 // ========================================
-// INICIAR SERVIDOR
+// INICIAR SERVIDOR WEB
 // ========================================
 
-server.listen(PORT, "0.0.0.0", () => {
-console.log("🌐 Panel DARK FF V1: puerto ${PORT}");
-console.log("🚀 Servidor web iniciado correctamente.");
-});
+server.listen(
+PORT,
+"0.0.0.0",
+() => {
+
+console.log(
+  `🌐 Panel DARK FF V1: puerto ${PORT}`
+);
+
+console.log(
+  "🚀 Servidor web iniciado correctamente."
+);
+
+}
+);
 
 // ========================================
 // INICIAR BOT
 // ========================================
 
 client.login(TOKEN).catch(error => {
-console.error("❌ No se pudo iniciar sesión en Discord:");
+
+console.error(
+"❌ No se pudo iniciar sesión en Discord:"
+);
+
 console.error(error);
+
 });
 
 // ========================================
 // ERRORES
 // ========================================
 
-process.on("unhandledRejection", error => {
-console.error("❌ Unhandled Rejection:", error);
-});
+process.on(
+"unhandledRejection",
+error => {
 
-process.on("uncaughtException", error => {
-console.error("❌ Uncaught Exception:", error);
-});
+console.error(
+  "❌ Unhandled Rejection:",
+  error
+);
+
+}
+);
+
+process.on(
+"uncaughtException",
+error => {
+
+console.error(
+  "❌ Uncaught Exception:",
+  error
+);
+
+}
+);
