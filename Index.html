@@ -1,7 +1,12 @@
-<!DOCTYPE html><html lang="es">
+<!DOCTYPE html>
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">  <title>DARK FF V1 — Panel</title>  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>DARK FF V1 — Panel</title>
+
+  <style>
     * {
       box-sizing: border-box;
       margin: 0;
@@ -10,32 +15,38 @@
     }
 
     body {
-      background: #0b0b0f;
-      color: white;
+      background: #08080c;
+      color: #fff;
       min-height: 100vh;
     }
 
     header {
-      background: #111118;
-      border-bottom: 1px solid #24242d;
-      padding: 18px 25px;
+      height: 70px;
+      background: #111116;
+      border-bottom: 1px solid #292933;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      padding: 0 25px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     .logo {
-      font-size: 24px;
-      font-weight: bold;
+      font-size: 23px;
+      font-weight: 800;
+      letter-spacing: .5px;
     }
 
     .logo span {
-      color: #ff2b2b;
+      color: #ff3030;
     }
 
     .status {
       color: #55ff88;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: bold;
     }
 
     .container {
@@ -44,73 +55,105 @@
     }
 
     aside {
-      width: 230px;
-      background: #101016;
-      border-right: 1px solid #24242d;
-      padding: 20px 12px;
+      width: 235px;
+      background: #0e0e14;
+      border-right: 1px solid #292933;
+      padding: 22px 12px;
+      flex-shrink: 0;
     }
 
     .menu-title {
       color: #777783;
-      font-size: 12px;
-      margin: 10px 12px;
+      font-size: 11px;
+      font-weight: bold;
+      margin: 5px 12px 12px;
       text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .menu button {
       width: 100%;
-      padding: 13px;
-      margin-bottom: 7px;
       border: 0;
-      border-radius: 8px;
+      border-radius: 9px;
       background: transparent;
-      color: #ccc;
+      color: #aaaab4;
+      padding: 13px;
+      margin-bottom: 6px;
       text-align: left;
       cursor: pointer;
       font-size: 14px;
+      transition: .2s;
     }
 
-    .menu button:hover,
-    .menu button.active {
-      background: #1d1d27;
+    .menu button:hover {
+      background: #191920;
       color: white;
+    }
+
+    .menu button.active {
+      background: #241416;
+      color: white;
+      border-left: 3px solid #ff3030;
     }
 
     main {
       flex: 1;
       padding: 30px;
-      max-width: 1100px;
+      max-width: 1150px;
+    }
+
+    section {
+      animation: aparecer .2s ease;
+    }
+
+    @keyframes aparecer {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .welcome {
-      margin-bottom: 25px;
+      margin-bottom: 28px;
     }
 
     .welcome h1 {
-      font-size: 30px;
+      font-size: 31px;
       margin-bottom: 8px;
     }
 
     .welcome p {
       color: #92929d;
+      font-size: 14px;
     }
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
       gap: 15px;
       margin-bottom: 25px;
     }
 
     .card {
-      background: #111118;
-      border: 1px solid #24242d;
-      border-radius: 12px;
+      background: #111116;
+      border: 1px solid #292933;
+      border-radius: 13px;
       padding: 20px;
+      transition: .2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: #3a3a46;
     }
 
     .card .icon {
-      font-size: 25px;
+      font-size: 27px;
       margin-bottom: 12px;
     }
 
@@ -120,361 +163,783 @@
     }
 
     .card p {
-      color: #888894;
+      color: #858591;
       font-size: 13px;
+      line-height: 1.5;
     }
 
     .panel {
-      background: #111118;
-      border: 1px solid #24242d;
-      border-radius: 12px;
-      padding: 22px;
+      background: #111116;
+      border: 1px solid #292933;
+      border-radius: 13px;
+      padding: 24px;
       margin-bottom: 20px;
     }
 
     .panel h2 {
+      font-size: 21px;
       margin-bottom: 8px;
     }
 
-    .panel p {
-      color: #888894;
-      margin-bottom: 18px;
+    .panel > p {
+      color: #858591;
+      font-size: 14px;
+      margin-bottom: 20px;
     }
 
     .info {
-      background: #191923;
-      border: 1px solid #292933;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 18px;
-      color: #aaa;
+      background: #18181f;
+      border: 1px solid #2b2b36;
+      border-radius: 9px;
+      padding: 13px;
+      color: #aaaab4;
       font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 20px;
     }
 
     label {
       display: block;
-      margin-bottom: 7px;
       color: #ddd;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 7px;
     }
 
     input,
     textarea,
     select {
       width: 100%;
-      background: #0b0b0f;
-      border: 1px solid #292933;
-      color: white;
+      background: #09090d;
+      border: 1px solid #2b2b36;
       border-radius: 8px;
+      color: white;
       padding: 12px;
-      margin-bottom: 15px;
+      margin-bottom: 16px;
       outline: none;
-    }
-
-    textarea {
-      min-height: 100px;
-      resize: vertical;
+      font-size: 14px;
     }
 
     input:focus,
     textarea:focus,
     select:focus {
-      border-color: #ff2b2b;
+      border-color: #ff3030;
+    }
+
+    textarea {
+      min-height: 105px;
+      resize: vertical;
+    }
+
+    select {
+      cursor: pointer;
     }
 
     .button {
-      background: #ff2b2b;
-      border: none;
+      background: #ff3030;
+      border: 0;
+      border-radius: 8px;
       color: white;
       padding: 12px 18px;
-      border-radius: 8px;
-      cursor: pointer;
+      font-size: 14px;
       font-weight: bold;
+      cursor: pointer;
+      transition: .2s;
     }
 
     .button:hover {
-      opacity: 0.85;
+      background: #e92727;
+      transform: translateY(-1px);
+    }
+
+    .button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
     }
 
     .hidden {
-      display: none;
+      display: none !important;
+    }
+
+    .status-box {
+      background: #111116;
+      border: 1px solid #292933;
+      border-radius: 13px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #22222a;
+      font-size: 14px;
+    }
+
+    .status-line:last-child {
+      border-bottom: 0;
+    }
+
+    .green {
+      color: #55ff88;
+    }
+
+    .red {
+      color: #ff5555;
     }
 
     footer {
       color: #666673;
       text-align: center;
-      padding: 25px;
-      font-size: 13px;
+      padding: 30px 10px;
+      font-size: 12px;
     }
 
     @media (max-width: 700px) {
+
+      header {
+        padding: 0 15px;
+      }
+
+      .logo {
+        font-size: 19px;
+      }
+
+      .status {
+        font-size: 11px;
+      }
+
       .container {
         display: block;
       }
 
       aside {
         width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #24242d;
+        border-right: 0;
+        border-bottom: 1px solid #292933;
+        padding: 12px;
+      }
+
+      .menu-title {
+        display: none;
+      }
+
+      .menu {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+      }
+
+      .menu button {
+        margin: 0;
+        padding: 11px 7px;
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .menu button.active {
+        border-left: 0;
+        border-bottom: 2px solid #ff3030;
       }
 
       main {
-        padding: 20px;
+        padding: 18px 13px;
+      }
+
+      .welcome h1 {
+        font-size: 25px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .cards {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .card {
+        padding: 15px;
+      }
+
+      .card .icon {
+        font-size: 22px;
+      }
+
+      .card h3 {
+        font-size: 14px;
+      }
+
+      .card p {
+        font-size: 12px;
       }
     }
-  </style></head><body>  <header>
+
+    @media (max-width: 420px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .menu {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ========================================
+       HEADER
+  ========================================= -->
+
+  <header>
+
     <div class="logo">
       DARK <span>FF V1</span>
-    </div><div class="status">
-  ● Bot preparado
-</div>
+    </div>
 
-  </header>  <div class="container"><aside>
-  <div class="menu-title">Panel</div>
+    <div class="status" id="estadoBot">
+      ● Comprobando...
+    </div>
 
-  <div class="menu">
+  </header>
 
-    <button class="active" onclick="mostrar('inicio', this)">
-      🏠 Inicio
-    </button>
 
-    <button onclick="mostrar('bienvenida', this)">
-      👋 Bienvenida
-    </button>
+  <!-- ========================================
+       CONTENEDOR
+  ========================================= -->
 
-    <button onclick="mostrar('despedida', this)">
-      🚪 Despedida
-    </button>
+  <div class="container">
 
-    <button onclick="mostrar('moderacion', this)">
-      🛡️ Moderación
-    </button>
+    <!-- ======================================
+         MENÚ
+    ======================================= -->
 
-    <button onclick="mostrar('tickets', this)">
-      🎫 Tickets
-    </button>
+    <aside>
 
-    <button onclick="mostrar('niveles', this)">
-      ⭐ Niveles
-    </button>
+      <div class="menu-title">
+        Panel
+      </div>
+
+      <div class="menu">
+
+        <button class="active"
+          onclick="mostrar('inicio', this)">
+          🏠 Inicio
+        </button>
+
+        <button
+          onclick="mostrar('bienvenida', this)">
+          👋 Bienvenida
+        </button>
+
+        <button
+          onclick="mostrar('despedida', this)">
+          🚪 Despedida
+        </button>
+
+        <button
+          onclick="mostrar('moderacion', this)">
+          🛡️ Moderación
+        </button>
+
+        <button
+          onclick="mostrar('tickets', this)">
+          🎫 Tickets
+        </button>
+
+        <button
+          onclick="mostrar('niveles', this)">
+          ⭐ Niveles
+        </button>
+
+      </div>
+
+    </aside>
+
+
+    <!-- ======================================
+         CONTENIDO
+    ======================================= -->
+
+    <main>
+
+
+      <!-- ====================================
+           INICIO
+      ===================================== -->
+
+      <section id="inicio">
+
+        <div class="welcome">
+
+          <h1>
+            👋 DARK FF V1
+          </h1>
+
+          <p>
+            Panel de configuración de tu servidor de Discord.
+          </p>
+
+        </div>
+
+
+        <div class="cards">
+
+          <div class="card">
+
+            <div class="icon">
+              🤖
+            </div>
+
+            <h3>
+              Bot
+            </h3>
+
+            <p>
+              DARK FF V1 está conectado y preparado.
+            </p>
+
+          </div>
+
+
+          <div class="card">
+
+            <div class="icon">
+              👋
+            </div>
+
+            <h3>
+              Bienvenida
+            </h3>
+
+            <p>
+              Configura mensajes para nuevos miembros.
+            </p>
+
+          </div>
+
+
+          <div class="card">
+
+            <div class="icon">
+              🛡️
+            </div>
+
+            <h3>
+              Moderación
+            </h3>
+
+            <p>
+              Administra las herramientas de moderación.
+            </p>
+
+          </div>
+
+
+          <div class="card">
+
+            <div class="icon">
+              🎫
+            </div>
+
+            <h3>
+              Tickets
+            </h3>
+
+            <p>
+              Sistema de tickets próximamente.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="status-box">
+
+          <h3>
+            📊 Estado del sistema
+          </h3>
+
+          <br>
+
+          <div class="status-line">
+
+            <span>
+              Bot
+            </span>
+
+            <span
+              id="botOnline"
+              class="green">
+              Comprobando...
+            </span>
+
+          </div>
+
+
+          <div class="status-line">
+
+            <span>
+              Servidores
+            </span>
+
+            <span id="servidores">
+              ...
+            </span>
+
+          </div>
+
+
+          <div class="status-line">
+
+            <span>
+              Comandos
+            </span>
+
+            <span id="comandos">
+              ...
+            </span>
+
+          </div>
+
+
+          <div class="status-line">
+
+            <span>
+              Ping
+            </span>
+
+            <span id="ping">
+              ...
+            </span>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- ====================================
+           BIENVENIDA
+      ===================================== -->
+
+      <section id="bienvenida" class="hidden">
+
+        <div class="panel">
+
+          <h2>
+            👋 Bienvenida
+          </h2>
+
+          <p>
+            Configura el mensaje que recibirán los nuevos miembros.
+          </p>
+
+
+          <div class="info">
+
+            💡 Necesitas el ID del servidor y el ID del canal.
+            Puedes usar variables como
+            <b>{usuario}</b>,
+            <b>{nombre}</b>,
+            <b>{servidor}</b> y
+            <b>{miembros}</b>.
+
+          </div>
+
+
+          <label>
+            ID del servidor
+          </label>
+
+          <input
+            type="text"
+            id="guildId"
+            placeholder="Ejemplo: 123456789012345678"
+          >
+
+
+          <label>
+            ID del canal
+          </label>
+
+          <input
+            type="text"
+            id="welcomeChannel"
+            placeholder="ID del canal de bienvenida"
+          >
+
+
+          <label>
+            Mensaje
+          </label>
+
+          <textarea
+            id="welcomeMessage"
+            placeholder="¡Bienvenido {usuario} a {servidor}! 👋"
+          ></textarea>
+
+
+          <label>
+            Imagen de bienvenida
+          </label>
+
+          <input
+            type="url"
+            id="welcomeImage"
+            placeholder="https://ejemplo.com/imagen.png"
+          >
+
+
+          <button
+            class="button"
+            onclick="guardarBienvenida()">
+
+            💾 Guardar configuración
+
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- ====================================
+           DESPEDIDA
+      ===================================== -->
+
+      <section id="despedida" class="hidden">
+
+        <div class="panel">
+
+          <h2>
+            🚪 Despedida
+          </h2>
+
+          <p>
+            Configura el mensaje cuando un miembro abandone el servidor.
+          </p>
+
+
+          <div class="info">
+
+            💡 El mensaje se enviará automáticamente
+            al canal configurado.
+
+          </div>
+
+
+          <label>
+            ID del servidor
+          </label>
+
+          <input
+            type="text"
+            id="goodbyeGuildId"
+            placeholder="ID del servidor"
+          >
+
+
+          <label>
+            ID del canal
+          </label>
+
+          <input
+            type="text"
+            id="goodbyeChannel"
+            placeholder="ID del canal de despedida"
+          >
+
+
+          <label>
+            Mensaje
+          </label>
+
+          <textarea
+            id="goodbyeMessage"
+            placeholder="¡Hasta pronto {usuario}! 👋"
+          ></textarea>
+
+
+          <button
+            class="button"
+            onclick="guardarDespedida()">
+
+            💾 Guardar configuración
+
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- ====================================
+           MODERACIÓN
+      ===================================== -->
+
+      <section id="moderacion" class="hidden">
+
+        <div class="panel">
+
+          <h2>
+            🛡️ Moderación
+          </h2>
+
+          <p>
+            Configuración de herramientas de moderación.
+          </p>
+
+
+          <div class="info">
+
+            🛡️ Los comandos de moderación de
+            DARK FF V1 están disponibles desde Discord.
+
+          </div>
+
+
+          <label>
+            Canal de logs
+          </label>
+
+          <select id="moderationChannel">
+
+            <option>
+              Selecciona un canal
+            </option>
+
+          </select>
+
+
+          <button
+            class="button"
+            onclick="alert('⚙️ Esta función estará disponible próximamente.')">
+
+            💾 Guardar
+
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- ====================================
+           TICKETS
+      ===================================== -->
+
+      <section id="tickets" class="hidden">
+
+        <div class="panel">
+
+          <h2>
+            🎫 Tickets
+          </h2>
+
+          <p>
+            Configura el sistema de tickets de tu servidor.
+          </p>
+
+
+          <div class="info">
+
+            🎫 El sistema completo de tickets se añadirá
+            próximamente.
+
+          </div>
+
+
+          <button
+            class="button"
+            onclick="alert('🎫 Sistema de tickets próximamente.')">
+
+            ⚙️ Configurar tickets
+
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- ====================================
+           NIVELES
+      ===================================== -->
+
+      <section id="niveles" class="hidden">
+
+        <div class="panel">
+
+          <h2>
+            ⭐ Sistema de niveles
+          </h2>
+
+          <p>
+            Configura el sistema de XP y niveles de DARK FF V1.
+          </p>
+
+
+          <div class="info">
+
+            ⭐ El sistema de niveles está preparado
+            para futuras configuraciones desde este panel.
+
+          </div>
+
+
+          <label>
+            Canal de niveles
+          </label>
+
+          <select id="levelsChannel">
+
+            <option>
+              Selecciona un canal
+            </option>
+
+          </select>
+
+
+          <button
+            class="button"
+            onclick="alert('⭐ Configuración de niveles próximamente.')">
+
+            💾 Guardar configuración
+
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- ====================================
+           FOOTER
+      ===================================== -->
+
+      <footer>
+
+        DARK FF V1 © 2026
+
+      </footer>
+
+    </main>
 
   </div>
-</aside>
 
-<main>
 
-  <!-- INICIO -->
-  <section id="inicio">
+  <!-- ========================================
+       JAVASCRIPT
+  ========================================= -->
 
-    <div class="welcome">
-      <h1>👋 DARK FF V1</h1>
-      <p>
-        Panel de configuración de tu servidor de Discord.
-      </p>
-    </div>
-
-    <div class="cards">
-
-      <div class="card">
-        <div class="icon">🤖</div>
-        <h3>Bot</h3>
-        <p>DARK FF V1 está preparado.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon">👋</div>
-        <h3>Bienvenida</h3>
-        <p>Configura los mensajes para nuevos miembros.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon">🛡️</div>
-        <h3>Moderación</h3>
-        <p>Administra las funciones de moderación.</p>
-      </div>
-
-      <div class="card">
-        <div class="icon">🎫</div>
-        <h3>Tickets</h3>
-        <p>Próximamente podrás configurar tickets.</p>
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- BIENVENIDA -->
-  <section id="bienvenida" class="hidden">
-
-    <div class="panel">
-
-      <h2>👋 Bienvenida</h2>
-
-      <p>
-        Configura el mensaje que recibirán los nuevos miembros.
-      </p>
-
-      <div class="info">
-        💡 Primero escribe el ID del servidor donde quieres guardar
-        la configuración.
-      </div>
-
-      <label>ID del servidor</label>
-
-      <input
-        type="text"
-        id="guildId"
-        placeholder="Ejemplo: 123456789012345678">
-
-      <label>Canal de bienvenida</label>
-
-      <input
-        type="text"
-        id="welcomeChannel"
-        placeholder="ID del canal de bienvenida">
-
-      <label>Mensaje</label>
-
-      <textarea
-        id="welcomeMessage"
-        placeholder="¡Bienvenido {usuario} a nuestro servidor!"></textarea>
-
-      <label>Imagen de bienvenida</label>
-
-      <input
-        type="text"
-        id="welcomeImage"
-        placeholder="URL de la imagen (opcional)">
-
-      <button class="button" onclick="guardarBienvenida()">
-        💾 Guardar configuración
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- DESPEDIDA -->
-  <section id="despedida" class="hidden">
-
-    <div class="panel">
-
-      <h2>🚪 Despedida</h2>
-
-      <p>
-        Configura el mensaje cuando un miembro abandone el servidor.
-      </p>
-
-      <label>ID del servidor</label>
-
-      <input
-        type="text"
-        id="goodbyeGuildId"
-        placeholder="ID del servidor">
-
-      <label>ID del canal</label>
-
-      <input
-        type="text"
-        id="goodbyeChannel"
-        placeholder="ID del canal de despedida">
-
-      <label>Mensaje</label>
-
-      <textarea
-        id="goodbyeMessage"
-        placeholder="¡Hasta pronto {usuario}! 👋"></textarea>
-
-      <button class="button" onclick="guardarDespedida()">
-        💾 Guardar configuración
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- MODERACIÓN -->
-  <section id="moderacion" class="hidden">
-
-    <div class="panel">
-
-      <h2>🛡️ Moderación</h2>
-
-      <p>
-        Configuración de herramientas de moderación.
-      </p>
-
-      <label>Canal de logs</label>
-
-      <select>
-        <option>Selecciona un canal</option>
-      </select>
-
-      <button class="button">
-        💾 Guardar
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- TICKETS -->
-  <section id="tickets" class="hidden">
-
-    <div class="panel">
-
-      <h2>🎫 Tickets</h2>
-
-      <p>
-        El sistema de tickets se podrá configurar desde aquí.
-      </p>
-
-      <button class="button">
-        ⚙️ Configurar tickets
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <!-- NIVELES -->
-  <section id="niveles" class="hidden">
-
-    <div class="panel">
-
-      <h2>⭐ Sistema de niveles</h2>
-
-      <p>
-        Configura el sistema de XP y niveles de DARK FF V1.
-      </p>
-
-      <label>Canal de niveles</label>
-
-      <select>
-        <option>Selecciona un canal</option>
-      </select>
-
-      <button class="button">
-        💾 Guardar configuración
-      </button>
-
-    </div>
-
-  </section>
-
-
-  <footer>
-    DARK FF V1 © 2026
-  </footer>
-
-</main>
-
-  </div>  <script>
+  <script>
 
     // ========================================
     // CAMBIAR SECCIÓN
@@ -492,20 +957,110 @@
       ];
 
       secciones.forEach(seccion => {
-        document
-          .getElementById(seccion)
-          .classList.add("hidden");
+
+        const elemento =
+          document.getElementById(seccion);
+
+        if (elemento) {
+          elemento.classList.add("hidden");
+        }
+
       });
 
-      document
-        .getElementById(id)
-        .classList.remove("hidden");
+
+      const seleccion =
+        document.getElementById(id);
+
+      if (seleccion) {
+        seleccion.classList.remove("hidden");
+      }
+
 
       document
         .querySelectorAll(".menu button")
-        .forEach(btn => btn.classList.remove("active"));
+        .forEach(btn => {
 
-      boton.classList.add("active");
+          btn.classList.remove("active");
+
+        });
+
+
+      if (boton) {
+        boton.classList.add("active");
+      }
+
+    }
+
+
+    // ========================================
+    // COMPROBAR ESTADO DEL BOT
+    // ========================================
+
+    async function comprobarEstado() {
+
+      try {
+
+        const respuesta =
+          await fetch("/api/status");
+
+        if (!respuesta.ok) {
+          throw new Error("Error HTTP");
+        }
+
+        const datos =
+          await respuesta.json();
+
+
+        document.getElementById("estadoBot").textContent =
+          "● Bot online";
+
+        document.getElementById("estadoBot").className =
+          "status";
+
+
+        document.getElementById("botOnline").textContent =
+          "● Online";
+
+        document.getElementById("botOnline").className =
+          "green";
+
+
+        document.getElementById("servidores").textContent =
+          datos.servers ?? "0";
+
+
+        document.getElementById("comandos").textContent =
+          datos.commands ?? "0";
+
+
+        document.getElementById("ping").textContent =
+          datos.ping >= 0
+            ? datos.ping + " ms"
+            : "Conectando...";
+
+
+      } catch (error) {
+
+        console.error(error);
+
+
+        document.getElementById("estadoBot").textContent =
+          "● Sin conexión";
+
+
+        document.getElementById("estadoBot").style.color =
+          "#ff5555";
+
+
+        document.getElementById("botOnline").textContent =
+          "● Offline";
+
+
+        document.getElementById("botOnline").className =
+          "red";
+
+      }
+
     }
 
 
@@ -516,163 +1071,145 @@
     async function guardarBienvenida() {
 
       const guildId =
-        document.getElementById("guildId").value.trim();
+        document
+          .getElementById("guildId")
+          .value
+          .trim();
+
 
       const channelId =
-        document.getElementById("welcomeChannel").value.trim();
+        document
+          .getElementById("welcomeChannel")
+          .value
+          .trim();
+
 
       const message =
-        document.getElementById("welcomeMessage").value.trim();
+        document
+          .getElementById("welcomeMessage")
+          .value
+          .trim();
+
 
       const image =
-        document.getElementById("welcomeImage").value.trim();
+        document
+          .getElementById("welcomeImage")
+          .value
+          .trim();
 
 
       if (!guildId) {
-        alert("❌ Escribe el ID del servidor.");
-        return;
-      }
-
-      if (!channelId) {
-        alert("❌ Escribe el ID del canal.");
-        return;
-      }
-
-      if (!message) {
-        alert("❌ Escribe un mensaje de bienvenida.");
-        return;
-      }
-
-
-      try {
-
-        const respuesta = await fetch("/api/bienvenida", {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json"
-          },
-
-          body: JSON.stringify({
-            guildId: guildId,
-            channelId: channelId,
-            message: message,
-            image: image
-          })
-
-        });
-
-
-        const resultado = await respuesta.json();
-
-
-        if (resultado.success) {
-
-          alert(
-            "✅ Configuración de bienvenida guardada correctamente."
-          );
-
-        } else {
-
-          alert(
-            "❌ " + (resultado.message || "No se pudo guardar.")
-          );
-
-        }
-
-      } catch (error) {
-
-        console.error(error);
 
         alert(
-          "❌ No se pudo conectar con DARK FF V1."
+          "❌ Escribe el ID del servidor."
         );
 
-      }
-
-    }
-
-
-    // ========================================
-    // GUARDAR DESPEDIDA
-    // ========================================
-
-    async function guardarDespedida() {
-
-      const guildId =
-        document.getElementById("goodbyeGuildId").value.trim();
-
-      const channelId =
-        document.getElementById("goodbyeChannel").value.trim();
-
-      const message =
-        document.getElementById("goodbyeMessage").value.trim();
-
-
-      if (!guildId) {
-        alert("❌ Escribe el ID del servidor.");
         return;
+
       }
+
 
       if (!channelId) {
-        alert("❌ Escribe el ID del canal.");
+
+        alert(
+          "❌ Escribe el ID del canal."
+        );
+
         return;
+
       }
 
+
       if (!message) {
-        alert("❌ Escribe un mensaje.");
+
+        alert(
+          "❌ Escribe un mensaje de bienvenida."
+        );
+
         return;
+
       }
 
 
       try {
 
-        const respuesta = await fetch("/api/despedida", {
+        const respuesta =
+          await fetch(
+            "/api/bienvenida",
+            {
+              method: "POST",
 
-          method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
 
-          headers: {
-            "Content-Type": "application/json"
-          },
+              body: JSON.stringify({
 
-          body: JSON.stringify({
-            guildId: guildId,
-            channelId: channelId,
-            message: message
-          })
+                guildId: guildId,
 
-        });
+                channelId: channelId,
+
+                message: message,
+
+                image: image
+
+              })
+
+            }
+          );
 
 
-        const resultado = await respuesta.json();
+        const resultado =
+          await respuesta.json();
 
 
         if (resultado.success) {
 
           alert(
             "✅ Configuración de despedida guardada correctamente."
-          );
+          );     
+} else {
 
-        } else {
+alert(
 
-          alert(
-            "❌ " + (resultado.message || "No se pudo guardar.")
-          );
+}
 
-        }
+);
 
-      } catch (error) {
+(
 
-        console.error(error);
+resultado.message ||
 
-        alert(
-          "❌ No se pudo conectar con DARK FF V1."
-        );
+"No se pudo guardar."
+)
 
-      }
+} catch (error) {
 
-    }
+console.error(error);
 
-  </script></body>
-</html>
+alert(
+
+No se pudo conectar con DARK FF VI."
+
+);
+
+}
+
+}
+
+// INICIAR
+
+comprobarEstado ();
+
+setInterval(
+
+);
+
+comprobarEstado,
+
+30000
+
+</script>
+
+</body>
