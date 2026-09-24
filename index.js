@@ -1,7 +1,8 @@
 require("dotenv").config();
 const express = require("express");
-const { Client, GatewayIntentBits, REST, Routes } = require("discord.js");
-const commands = require("./commands");
+const { Client, GatewayIntentBits, Collection, REST, Routes } = require("discord.js");
+const fs = require("fs");
+const path = require("path");
 const handler = require("./handler");
 
 const app = express();
@@ -14,9 +15,34 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent // Necesario para el XP al hablar
+    GatewayIntentBits.MessageContent
   ]
 });
+
+client.commands = new Collection();
+
+// CARGAR TODOS LOS COMANDOS DE /commands/info Y /commands/fun
+const commandsPath = path.join(__dirname, "commands");
+const commandFolders = fs.readdirSync(commandsPath);
+const commands = [];
+
+for (const folder of commandFolders) {
+  const folderPath = path.join(commandsPath, folder);
+  const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith(".js"));
+  
+  for (const file of commandFiles) {
+    const filePath = path.join(folderPath, file);
+    const command = require(filePath);
+    
+    if ("data" in command && "execute" in command) {
+      client.commands.set(command.data.name, command);
+      commands.push(command.data.toJSON());
+      console.log(`✅ Comando cargado: ${command.data.name}`);
+    } else {
+      console.log(`[ADVERTENCIA] El comando en ${filePath} no tiene "data" o "execute"`);
+    }
+  }
+}
 
 client.once("ready", async () => {
   console.log(`✅ ${client.user.tag} conectado`);
@@ -26,8 +52,6 @@ client.once("ready", async () => {
   handler.client(client);
 
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
-
-  // Si tienes GUILD_ID en .env se registra al instante. Si no, tarda 1 hora
   const route = process.env.GUILD_ID
     ? Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID)
     : Routes.applicationCommands(process.env.CLIENT_ID);
@@ -40,7 +64,23 @@ client.once("ready", async () => {
   }
 });
 
-client.on("interactionCreate", handler);
+// MANEJAR INTERACCIONES /push /punch /help
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(error);
+    await interaction.reply({ content: "Hubo un error ejecutando este comando", ephemeral: true });
+  }
+});
+
+// MANEJAR MENSAJES PARA XP
+client.on("messageCreate", handler);
 
 client.on("error", error => {
   console.error("❌ Error del cliente:", error);
