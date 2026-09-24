@@ -1,30 +1,20 @@
 const { REST, Routes } = require('discord.js');
-const { clientId, token } = require('./config.json'); // o process.env.TOKEN
-const fs = require('fs');
-
-const commands = [];
-const commandFiles = fs.readdirSync('./').filter(file => file === 'commands.js');
 const commandsJson = require('./commands.js');
 
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN || token);
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
 	try {
-		console.log(`Empezando a actualizar ${commandsJson.length} comandos.`);
-
-		// ELIMINA TODOS LOS COMANDOS VIEJOS PRIMERO
-		await rest.put(Routes.applicationCommands(clientId), { body: [] });
-		
-	// ESPERA 2 SEGUNDOS
+		console.log(`Borrando comandos viejos...`);
+		await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: [] });
 		await new Promise(r => setTimeout(r, 2000));
 
-		// REGISTRA LOS NUEVOS
+		console.log(`Registrando ${commandsJson.length} comandos nuevos...`);
 		const data = await rest.put(
-			Routes.applicationCommands(clientId),
+			Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
 			{ body: commandsJson },
-		);
-
-		console.log(`Se actualizaron correctamente ${data.length} comandos.`);
+	);
+		console.log(`Listo! ${data.length} comandos actualizados en tu server.`);
 	} catch (error) {
 		console.error(error);
 	}
