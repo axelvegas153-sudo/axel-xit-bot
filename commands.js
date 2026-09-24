@@ -1,6 +1,5 @@
 const {
   SlashCommandBuilder,
-  EmbedBuilder,
   PermissionFlagsBits
 } = require("discord.js");
 
@@ -77,7 +76,8 @@ const commands = [
   new SlashCommandBuilder().setName("joke").setDescription("Broma"),
   new SlashCommandBuilder().setName("fact").setDescription("Dato curioso"),
   new SlashCommandBuilder().setName("quote").setDescription("Frase"),
-  new SlashCommandBuilder().setName("motivate").setDescription("Motivación"),
+  new SlashCommandBuilder().setName("motivate").setDescription("Motivación grandiosa")
+    .addStringOption(o=>o.setName("frase").setDescription("Qué quieres que te motive").setRequired(true)),
 
   new SlashCommandBuilder().setName("hug").setDescription("Abrazo amistoso")
     .addUserOption(o=>o.setName("usuario").setDescription("Usuario").setRequired(true)),
@@ -105,7 +105,6 @@ const commands = [
 
   new SlashCommandBuilder().setName("rank").setDescription("Muestra tu nivel"),
   new SlashCommandBuilder().setName("level").setDescription("Muestra tu nivel"),
-  new SlashCommandBuilder().setName("xp").setDescription("Muestra tu XP"),
   new SlashCommandBuilder().setName("leaderboard").setDescription("Ranking de XP"),
   new SlashCommandBuilder().setName("daily").setDescription("Recompensa diaria"),
   new SlashCommandBuilder().setName("balance").setDescription("Muestra tus monedas"),
@@ -130,7 +129,32 @@ const commands = [
   new SlashCommandBuilder().setName("guildid").setDescription("ID del servidor"),
   new SlashCommandBuilder().setName("channelid").setDescription("ID del canal"),
   new SlashCommandBuilder().setName("botid").setDescription("ID del bot"),
-  new SlashCommandBuilder().setName("commands").setDescription("Cantidad de comandos")
+  new SlashCommandBuilder().setName("commands").setDescription("Cantidad de comandos"),
+
+  // NUEVOS COMANDOS
+  new SlashCommandBuilder().setName("lenguaje").setDescription("Cambia el idioma del bot")
+   .addStringOption(o=>o.setName("idioma").setDescription("es o en").setRequired(true)
+   .addChoices({name: "Español", value: "es"}, {name: "English", value: "en"})),
+
+  new SlashCommandBuilder().setName("xp").setDescription("Muestra tu XP")
+   .addUserOption(o=>o.setName("usuario").setDescription("Usuario").setRequired(false)),
+
+  new SlashCommandBuilder().setName("ia").setDescription("Pregúntale cualquier cosa a la IA")
+    .addStringOption(o=>o.setName("pregunta").setDescription("Qué quieres saber").setRequired(true)),
+
+  new SlashCommandBuilder().setName("crear").setDescription("Crea una imagen con IA")
+    .addStringOption(o=>o.setName("prompt").setDescription("Describe: ej: Goku anime 4k").setRequired(true)),
+
+  new SlashCommandBuilder().setName("funar").setDescription("Funa a alguien sin groserías")
+    .addUserOption(o=>o.setName("usuario").setDescription("A quien funar").setRequired(true))
+    .addStringOption(o=>o.setName("motivo").setDescription("Por qué")),
+
+  new SlashCommandBuilder().setName("push").setDescription("Empuja a alguien")
+    .addUserOption(o=>o.setName("usuario").setDescription("A quien empujar").setRequired(true)),
+
+  new SlashCommandBuilder().setName("ship").setDescription("Mide el amor entre 2 personas")
+    .addUserOption(o=>o.setName("persona1").setDescription("Primera persona").setRequired(true))
+    .addUserOption(o=>o.setName("persona2").setDescription("Segunda persona").setRequired(true)),
 ];
 
 module.exports = commands.map(c=>c.toJSON());
