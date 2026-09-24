@@ -198,7 +198,3 @@ timestamp: Date.now()
 // ================================
 // INICIAR PANEL
 // ================================
-
-app.listen(PORT, () => {
-console.log("🌐 Panel DARK FF V1 iniciado en puerto ${PORT}");
-});
