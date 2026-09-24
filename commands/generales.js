@@ -4,6 +4,9 @@ const {
 } = require("discord.js");
 
 module.exports = [
+  // ================================
+  // /AYUDA
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("ayuda")
@@ -11,24 +14,27 @@ module.exports = [
 
     async execute(interaction) {
       const embed = new EmbedBuilder()
-        .setTitle("📚 DARK BIO FF")
+        .setTitle("📚 DARK FF V1")
         .setDescription(
-          "**Comandos disponibles**\n\n" +
+          "Aquí tienes los comandos disponibles:\n\n" +
+
           "🛠️ **Generales**\n" +
-          "`/ayuda` `/ping` `/botinfo` `/servidor` `/usuario` `/avatar`\n" +
-          "`/banner` `/icono` `/roles` `/canales` `/fecha` `/hora`\n" +
-          "`/invitar` `/soporte` `/estado` `/uptime` `/estadisticas`\n" +
-          "`/github` `/comandos` `/latencia`\n\n" +
+          "`/ayuda` `/help` `/ping` `/botinfo` `/servidor`\n" +
+          "`/usuario` `/avatar` `/banner` `/icono` `/roles`\n" +
+          "`/canales` `/fecha` `/hora` `/invitar` `/soporte`\n" +
+          "`/estado` `/uptime` `/estadisticas` `/github`\n" +
+          "`/comandos` `/latencia`\n\n" +
 
           "🔨 **Moderación**\n" +
           "`/ban` `/desban` `/kick` `/timeout` `/untimeout`\n" +
-          "`/warn` `/warnings` `/clear` `/slowmode` `/lock` `/unlock`\n" +
-          "`/nick` `/addrol` `/delrol` `/purge` `/anuncio` `/reglas` `/modlogs`\n\n" +
+          "`/warn` `/warnings` `/clear` `/slowmode` `/lock`\n" +
+          "`/unlock` `/nick` `/addrol` `/delrol` `/purge`\n" +
+          "`/anuncio` `/reglas` `/modlogs`\n\n" +
 
           "🎮 **Diversión**\n" +
           "`/8ball` `/dado` `/moneda` `/ppt` `/compatibilidad`\n" +
           "`/broma` `/reto` `/pregunta` `/eleccion` `/random`\n" +
-          "`/frase` `/decir` `/color`\n\n" +
+          "`/frase` `/decir` `/color` `/push`\n\n" +
 
           "⭐ **Niveles**\n" +
           "`/nivel` `/perfil` `/xp` `/rangos` `/rankingxp` `/top`\n" +
@@ -38,19 +44,47 @@ module.exports = [
 
           "📋 **Información**\n" +
           "`/usuarioinfo` `/serverinfo` `/roleinfo` `/channelinfo`\n" +
-          "`/emojiinfo` `/inviteinfo` `/membercount` `/boosts` `/boosters`\n" +
-          "`/joined` `/created` `/permissions` `/rolelist` `/channellist`\n" +
-          "`/servericon` `/serverbanner` `/serverowner` `/botservers` `/botstats`"
+          "`/emojiinfo` `/inviteinfo` `/membercount` `/boosts`\n" +
+          "`/boosters` `/joined` `/created` `/permissions`\n" +
+          "`/rolelist` `/channellist` `/servericon` `/serverbanner`\n" +
+          "`/serverowner` `/botservers` `/botstats`"
         )
         .setColor(0x5865F2)
         .setFooter({
-          text: "DARK BIO FF • Bot público"
+          text: "DARK FF V1 • Bot público"
         });
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({
+        embeds: [embed]
+      });
     }
   },
 
+  // ================================
+  // /HELP
+  // ================================
+  {
+    data: new SlashCommandBuilder()
+      .setName("help")
+      .setDescription("Muestra la ayuda del bot"),
+
+    async execute(interaction) {
+      const embed = new EmbedBuilder()
+        .setTitle("📜 DARK FF V1 — AYUDA")
+        .setDescription(
+          "Usa `/ayuda` para ver todas las categorías y comandos disponibles."
+        )
+        .setColor(0x5865F2);
+
+      await interaction.reply({
+        embeds: [embed]
+      });
+    }
+  },
+
+  // ================================
+  // /PING
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("ping")
@@ -63,6 +97,9 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /BOTINFO
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("botinfo")
@@ -70,7 +107,7 @@ module.exports = [
 
     async execute(interaction, client) {
       const embed = new EmbedBuilder()
-        .setTitle("🤖 DARK BIO FF")
+        .setTitle("🤖 DARK FF V1")
         .setDescription(
           `**Bot:** ${client.user.tag}\n` +
           `**ID:** ${client.user.id}\n` +
@@ -79,10 +116,15 @@ module.exports = [
         )
         .setColor(0x5865F2);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({
+        embeds: [embed]
+      });
     }
   },
 
+  // ================================
+  // /SERVIDOR
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("servidor")
@@ -110,10 +152,15 @@ module.exports = [
         )
         .setColor(0x5865F2);
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.reply({
+        embeds: [embed]
+      });
     }
   },
 
+  // ================================
+  // /USUARIO
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("usuario")
@@ -126,6 +173,9 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /AVATAR
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("avatar")
@@ -141,6 +191,33 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /BANNER
+  // ================================
+  {
+    data: new SlashCommandBuilder()
+      .setName("banner")
+      .setDescription("Muestra tu banner"),
+
+    async execute(interaction, client) {
+      const usuario = await client.users.fetch(
+        interaction.user.id,
+        { force: true }
+      );
+
+      const banner = usuario.bannerURL({
+        size: 1024
+      });
+
+      await interaction.reply(
+        banner || "❌ No tienes un banner."
+      );
+    }
+  },
+
+  // ================================
+  // /ICONO
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("icono")
@@ -157,6 +234,9 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /ROLES
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("roles")
@@ -175,6 +255,9 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /CANALES
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("canales")
@@ -192,6 +275,9 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /FECHA
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("fecha")
@@ -199,40 +285,90 @@ module.exports = [
 
     async execute(interaction) {
       await interaction.reply(
-        `📅 ${new Date().toLocaleDateString("es-CO")}`
+        `📅 <t:${Math.floor(Date.now() / 1000)}:D>`
       );
     }
   },
 
+  // ================================
+  // /HORA
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("hora")
-      .setDescription("Muestra la hora actual"),
+      .setDescription("Muestra la hora local de cada persona"),
 
     async execute(interaction) {
+      const timestamp = Math.floor(Date.now() / 1000);
+
       await interaction.reply(
-        `🕐 ${new Date().toLocaleTimeString("es-CO")}`
+        `🕐 Hora local: <t:${timestamp}:t>\n` +
+        `📅 Fecha: <t:${timestamp}:D>\n\n` +
+        `Discord mostrará la hora según la zona horaria de cada persona.`
       );
     }
   },
 
+  // ================================
+  // /INVITAR
+  // ================================
+  {
+    data: new SlashCommandBuilder()
+      .setName("invitar")
+      .setDescription("Muestra el enlace para invitar el bot"),
+
+    async execute(interaction, client) {
+      const enlace =
+        `https://discord.com/oauth2/authorize?client_id=${client.user.id}` +
+        `&permissions=8&scope=bot%20applications.commands`;
+
+      await interaction.reply(
+        `🔗 **Invita a DARK FF V1:**\n${enlace}`
+      );
+    }
+  },
+
+  // ================================
+  // /SOPORTE
+  // ================================
+  {
+    data: new SlashCommandBuilder()
+      .setName("soporte")
+      .setDescription("Muestra el servidor de soporte"),
+
+    async execute(interaction) {
+      await interaction.reply(
+        "🛠️ El servidor de soporte estará disponible próximamente."
+      );
+    }
+  },
+
+  // ================================
+  // /ESTADO
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("estado")
       .setDescription("Muestra el estado del bot"),
 
     async execute(interaction) {
-      await interaction.reply("🟢 **DARK BIO FF está online.**");
+      await interaction.reply(
+        "🟢 **DARK BIO FF está online y funcionando.**"
+      );
     }
   },
 
+  // ================================
+  // /UPTIME
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("uptime")
       .setDescription("Muestra cuánto lleva conectado"),
 
     async execute(interaction, client) {
-      const segundos = Math.floor(client.uptime / 1000);
+      const segundos =
+        Math.floor(client.uptime / 1000);
 
       await interaction.reply(
         `⏱️ El bot lleva conectado **${segundos} segundos**.`
@@ -240,6 +376,9 @@ module.exports = [
     }
   },
 
+  // ================================
+  // /ESTADISTICAS
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("estadisticas")
@@ -247,13 +386,16 @@ module.exports = [
 
     async execute(interaction, client) {
       await interaction.reply(
-        `📊 **Estadísticas**\n\n` +
+        `📊 **DARK FF V1**\n\n` +
         `🛡️ Servidores: **${client.guilds.cache.size}**\n` +
-        `⚡ Ping: **${client.ws.ping}ms**`
+        `🏓 Ping: **${client.ws.ping}ms**`
       );
     }
   },
 
+  // ================================
+  // /COMANDOS
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("comandos")
@@ -261,11 +403,14 @@ module.exports = [
 
     async execute(interaction) {
       await interaction.reply(
-        "📚 Usa **/ayuda** para ver todos los comandos de DARK BIO FF."
+        "📚 Usa **/ayuda** para ver todos los comandos."
       );
     }
   },
 
+  // ================================
+  // /LATENCIA
+  // ================================
   {
     data: new SlashCommandBuilder()
       .setName("latencia")
