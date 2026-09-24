@@ -853,4 +853,4 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("guilds")
-    .setDescription("Servidores del bo
+    .setDescription("Servidores del bot")
