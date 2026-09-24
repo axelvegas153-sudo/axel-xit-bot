@@ -13,26 +13,26 @@ const {
   Events
 } = require("discord.js");
 
-// ==================================================
+// ================================
 // CONFIGURACIÓN
-// ==================================================
+// ================================
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
 if (!TOKEN) {
-  console.error("❌ Falta DISCORD_TOKEN en las variables de Railway.");
+  console.error("❌ Falta DISCORD_TOKEN en Railway.");
   process.exit(1);
 }
 
 if (!CLIENT_ID) {
-  console.error("❌ Falta CLIENT_ID en las variables de Railway.");
+  console.error("❌ Falta CLIENT_ID en Railway.");
   process.exit(1);
 }
 
-// ==================================================
-// CLIENTE DE DISCORD
-// ==================================================
+// ================================
+// CLIENTE
+// ================================
 
 const client = new Client({
   intents: [
@@ -45,15 +45,15 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// ==================================================
+// ================================
 // CARGAR COMANDOS
-// ==================================================
+// ================================
 
 const commandsPath = path.join(__dirname, "commands");
 
 if (!fs.existsSync(commandsPath)) {
   fs.mkdirSync(commandsPath, { recursive: true });
-  console.log("📁 Carpeta 'commands' creada.");
+  console.log("📁 Carpeta commands creada.");
 }
 
 const commandFiles = fs
@@ -66,31 +66,48 @@ for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
 
   try {
-    const command = require(filePath);
+    const loaded = require(filePath);
 
-    if (!command.data || !command.execute) {
-      console.warn(`⚠️ ${file} no tiene 'data' o 'execute'.`);
-      continue;
+    // Permitir un comando o varios comandos en un archivo
+    const commandList = Array.isArray(loaded)
+      ? loaded
+      : [loaded];
+
+    for (const command of commandList) {
+      if (!command.data || !command.execute) {
+        console.warn(
+          `⚠️ Se encontró un comando inválido en ${file}`
+        );
+        continue;
+      }
+
+      const commandName = command.data.name;
+
+      client.commands.set(commandName, command);
+      commands.push(command.data.toJSON());
+
+      console.log(`✅ /${commandName}`);
     }
 
-    client.commands.set(command.data.name, command);
-    commands.push(command.data.toJSON());
-
-    console.log(`✅ Comando cargado: /${command.data.name}`);
   } catch (error) {
-    console.error(`❌ Error cargando ${file}:`, error);
+    console.error(`❌ Error en ${file}:`);
+    console.error(error);
   }
 }
 
-// ==================================================
+// ================================
 // REGISTRAR SLASH COMMANDS
-// ==================================================
+// ================================
 
 async function registerCommands() {
   try {
-    const rest = new REST({ version: "10" }).setToken(TOKEN);
+    const rest = new REST({
+      version: "10"
+    }).setToken(TOKEN);
 
-    console.log(`🔄 Registrando ${commands.length} comandos...`);
+    console.log(
+      `🔄 Registrando ${commands.length} comandos...`
+    );
 
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
@@ -102,114 +119,188 @@ async function registerCommands() {
     console.log(
       `✅ ${commands.length} comandos registrados correctamente.`
     );
+
   } catch (error) {
-    console.error("❌ Error registrando comandos:", error);
+    console.error("❌ Error registrando comandos:");
+    console.error(error);
   }
 }
 
-// ==================================================
-// EVENTO READY
-// ==================================================
+// ================================
+// BOT LISTO
+// ================================
 
-client.once(Events.ClientReady, readyClient => {
-  console.log("======================================");
-  console.log(`🤖 Bot conectado como ${readyClient.user.tag}`);
-  console.log(`📊 Servidores: ${readyClient.guilds.cache.size}`);
-  console.log(`⚡ Comandos: ${client.commands.size}`);
-  console.log("======================================");
+client.once(
+  Events.ClientReady,
+  readyClient => {
 
-  readyClient.user.setPresence({
-    activities: [
-      {
-        name: "/ayuda | DARK BIO FF",
-        type: 0
-      }
-    ],
-    status: "online"
-  });
-});
+    console.log("");
+    console.log("================================");
+    console.log("🤖 DARK BIO FF ONLINE");
+    console.log("================================");
+    console.log(`👤 Usuario: ${readyClient.user.tag}`);
+    console.log(`🛡️ Servidores: ${readyClient.guilds.cache.size}`);
+    console.log(`📚 Comandos: ${client.commands.size}`);
+    console.log(`🏓 Ping: ${readyClient.ws.ping}ms`);
+    console.log("================================");
 
-// ==================================================
-// INTERACCIONES
-// ==================================================
-
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const command = client.commands.get(interaction.commandName);
-
-  if (!command) {
-    console.warn(
-      `⚠️ Comando no encontrado: /${interaction.commandName}`
-    );
-    return;
+    readyClient.user.setPresence({
+      activities: [
+        {
+          name: "/ayuda | DARK BIO FF",
+          type: 0
+        }
+      ],
+      status: "online"
+    });
   }
+);
 
-  try {
-    await command.execute(interaction, client);
-  } catch (error) {
-    console.error(
-      `❌ Error ejecutando /${interaction.commandName}:`,
-      error
-    );
+// ================================
+// INTERACCIONES
+// ================================
 
-    const respuesta = {
-      content: "❌ Ocurrió un error al ejecutar este comando.",
-      ephemeral: true
-    };
+client.on(
+  Events.InteractionCreate,
+  async interaction => {
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(respuesta).catch(() => {});
-    } else {
-      await interaction.reply(respuesta).catch(() => {});
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
+
+    const command =
+      client.commands.get(
+        interaction.commandName
+      );
+
+    if (!command) {
+      console.warn(
+        `⚠️ Comando no encontrado: /${interaction.commandName}`
+      );
+      return;
+    }
+
+    try {
+
+      await command.execute(
+        interaction,
+        client
+      );
+
+    } catch (error) {
+
+      console.error(
+        `❌ Error ejecutando /${interaction.commandName}`
+      );
+
+      console.error(error);
+
+      const respuesta = {
+        content:
+          "❌ Ocurrió un error al ejecutar este comando.",
+        ephemeral: true
+      };
+
+      try {
+
+        if (
+          interaction.replied ||
+          interaction.deferred
+        ) {
+
+          await interaction.followUp(
+            respuesta
+          );
+
+        } else {
+
+          await interaction.reply(
+            respuesta
+          );
+        }
+
+      } catch {}
     }
   }
-});
+);
 
-// ==================================================
+// ================================
 // SERVIDOR HTTP PARA RAILWAY
-// ==================================================
+// ================================
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+  process.env.PORT || 3000;
 
-const server = http.createServer((req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "text/plain; charset=utf-8"
-  });
+const server = http.createServer(
+  (req, res) => {
 
-  res.end("DARK BIO FF BOT - ONLINE");
-});
+    res.writeHead(200, {
+      "Content-Type":
+        "text/plain; charset=utf-8"
+    });
 
-server.listen(PORT, () => {
-  console.log(`🌐 Servidor HTTP funcionando en puerto ${PORT}`);
-});
+    res.end(
+      "DARK BIO FF BOT - ONLINE"
+    );
+  }
+);
 
-// ==================================================
-// INICIAR BOT
-// ==================================================
+server.listen(
+  PORT,
+  () => {
+
+    console.log(
+      `🌐 Servidor HTTP activo en puerto ${PORT}`
+    );
+  }
+);
+
+// ================================
+// INICIAR
+// ================================
 
 async function start() {
+
   await registerCommands();
 
   try {
+
     await client.login(TOKEN);
+
   } catch (error) {
-    console.error("❌ No se pudo conectar con Discord.");
+
+    console.error(
+      "❌ No se pudo iniciar sesión en Discord."
+    );
+
     console.error(error);
+
     process.exit(1);
   }
 }
 
 start();
 
-// ==================================================
+// ================================
 // MANEJO DE ERRORES
-// ==================================================
+// ================================
 
-process.on("unhandledRejection", error => {
-  console.error("❌ Unhandled Rejection:", error);
-});
+process.on(
+  "unhandledRejection",
+  error => {
+    console.error(
+      "❌ Unhandled Rejection:",
+      error
+    );
+  }
+);
 
-process.on("uncaughtException", error => {
-  console.error("❌ Uncaught Exception:", error);
-});
+process.on(
+  "uncaughtException",
+  error => {
+    console.error(
+      "❌ Uncaught Exception:",
+      error
+    );
+  }
+);
