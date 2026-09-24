@@ -24,7 +24,7 @@ const commands = [
   new SlashCommandBuilder().setName("untimeout").setDescription("Quita el timeout a un usuario").addUserOption(o=>o.setName("usuario").setDescription("Usuario").setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   // UTILS
-  new SlashCommandBuilder().setName("Mensaje bot").setDescription("Hace que el bot diga algo").addStringOption(o=>o.setName("texto").setDescription("Texto").setRequired(true)),
+  new SlashCommandBuilder().setName("say").setDescription("Hace que el bot diga algo").addStringOption(o=>o.setName("texto").setDescription("Texto").setRequired(true)),
   new SlashCommandBuilder().setName("choose").setDescription("Elige una opción al azar").addStringOption(o=>o.setName("opciones").setDescription("Separa con | ej: pizza|hamburguesa").setRequired(true)),
   new SlashCommandBuilder().setName("8ball").setDescription("Bola mágica").addStringOption(o=>o.setName("pregunta").setDescription("Haz tu pregunta").setRequired(true)),
   new SlashCommandBuilder().setName("roll").setDescription("Lanza un dado").addIntegerOption(o=>o.setName("caras").setDescription("Número de caras").setMinValue(2).setMaxValue(100)),
