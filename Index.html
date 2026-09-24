@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>DARK FF V1 — Panel</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #0b0b0f;
+      color: white;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #111118;
+      border-bottom: 1px solid #24242d;
+      padding: 18px 25px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .logo span {
+      color: #ff2b2b;
+    }
+
+    .status {
+      color: #55ff88;
+      font-size: 14px;
+    }
+
+    .container {
+      display: flex;
+      min-height: calc(100vh - 70px);
+    }
+
+    aside {
+      width: 230px;
+      background: #101016;
+      border-right: 1px solid #24242d;
+      padding: 20px 12px;
+    }
+
+    .menu-title {
+      color: #777783;
+      font-size: 12px;
+      margin: 10px 12px;
+      text-transform: uppercase;
+    }
+
+    .menu button {
+      width: 100%;
+      padding: 13px;
+      margin-bottom: 7px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #ccc;
+      text-align: left;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .menu button:hover,
+    .menu button.active {
+      background: #1d1d27;
+      color: white;
+    }
+
+    main {
+      flex: 1;
+      padding: 30px;
+      max-width: 1100px;
+    }
+
+    .welcome {
+      margin-bottom: 25px;
+    }
+
+    .welcome h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .welcome p {
+      color: #92929d;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: #111118;
+      border: 1px solid #24242d;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card .icon {
+      font-size: 25px;
+      margin-bottom: 12px;
+    }
+
+    .card h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      color: #888894;
+      font-size: 13px;
+    }
+
+    .panel {
+      background: #111118;
+      border: 1px solid #24242d;
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    .panel h2 {
+      margin-bottom: 8px;
+    }
+
+    .panel p {
+      color: #888894;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #ddd;
+      font-size: 14px;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      background: #0b0b0f;
+      border: 1px solid #292933;
+      color: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 15px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: #ff2b2b;
+    }
+
+    .button {
+      background: #ff2b2b;
+      border: none;
+      color: white;
+      padding: 12px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .button:hover {
+      opacity: 0.85;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    footer {
+      color: #666673;
+      text-align: center;
+      padding: 25px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      .container {
+        display: block;
+      }
+
+      aside {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #24242d;
+      }
+
+      main {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">
+      DARK <span>FF V1</span>
+    </div>
+
+    <div class="status">
+      ● Bot preparado
+    </div>
+  </header>
+
+  <div class="container">
+
+    <aside>
+      <div class="menu-title">Panel</div>
+
+      <div class="menu">
+        <button class="active" onclick="mostrar('inicio', this)">
+          🏠 Inicio
+        </button>
+
+        <button onclick="mostrar('bienvenida', this)">
+          👋 Bienvenida
+        </button>
+
+        <button onclick="mostrar('despedida', this)">
+          🚪 Despedida
+        </button>
+
+        <button onclick="mostrar('moderacion', this)">
+          🛡️ Moderación
+        </button>
+
+        <button onclick="mostrar('tickets', this)">
+          🎫 Tickets
+        </button>
+
+        <button onclick="mostrar('niveles', this)">
+          ⭐ Niveles
+        </button>
+      </div>
+    </aside>
+
+    <main>
+
+      <!-- INICIO -->
+      <section id="inicio">
+
+        <div class="welcome">
+          <h1>👋 DARK FF V1</h1>
+          <p>Panel de configuración de tu servidor de Discord.</p>
+        </div>
+
+        <div class="cards">
+
+          <div class="card">
+            <div class="icon">🤖</div>
+            <h3>Bot</h3>
+            <p>DARK FF V1 está preparado.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon">👋</div>
+            <h3>Bienvenida</h3>
+            <p>Configura los mensajes para nuevos miembros.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon">🛡️</div>
+            <h3>Moderación</h3>
+            <p>Administra las funciones de moderación.</p>
+          </div>
+
+          <div class="card">
+            <div class="icon">🎫</div>
+            <h3>Tickets</h3>
+            <p>Próximamente podrás configurar tickets.</p>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- BIENVENIDA -->
+      <section id="bienvenida" class="hidden">
+
+        <div class="panel">
+          <h2>👋 Bienvenida</h2>
+
+          <p>
+            Configura el mensaje que recibirán los nuevos miembros.
+          </p>
+
+          <label>Canal de bienvenida</label>
+
+          <select id="welcomeChannel">
+            <option value="">Selecciona un canal</option>
+          </select>
+
+          <label>Mensaje</label>
+
+          <textarea id="welcomeMessage"
+            placeholder="¡Bienvenido {usuario} a nuestro servidor!"></textarea>
+
+          <label>Imagen de bienvenida</label>
+
+          <input
+            type="text"
+            id="welcomeImage"
+            placeholder="URL de la imagen">
+
+          <button class="button" onclick="guardarBienvenida()">
+            💾 Guardar configuración
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- DESPEDIDA -->
+      <section id="despedida" class="hidden">
+
+        <div class="panel">
+          <h2>🚪 Despedida</h2>
+
+          <p>
+            Configura el mensaje cuando un miembro abandone el servidor.
+          </p>
+
+          <label>Mensaje</label>
+
+          <textarea
+            id="goodbyeMessage"
+            placeholder="¡Hasta pronto {usuario}! 👋">
+          </textarea>
+
+          <button class="button" onclick="guardarDespedida()">
+            💾 Guardar configuración
+          </button>
+
+        </div>
+
+      </section>
+
+
+      <!-- MODERACIÓN -->
+      <section id="moderacion" class="hidden">
+
+        <div class="panel">
+          <h2>🛡️ Moderación</h2>
+
+          <p>
+            Configuración de herramientas de moderación.
+          </p>
+
+          <label>Canal de logs</label>
+
+          <select>
+            <option>Selecciona un canal</option>
+          </select>
+
+          <button class="button">
+            💾 Guardar
+          </button>
+        </div>
+
+      </section>
+
+
+      <!-- TICKETS -->
+      <section id="tickets" class="hidden">
+
+        <div class="panel">
+          <h2>🎫 Tickets</h2>
+
+          <p>
+            El sistema de tickets se podrá configurar desde aquí.
+          </p>
+
+          <button class="button">
+            ⚙️ Configurar tickets
+          </button>
+        </div>
+
+      </section>
+
+
+      <!-- NIVELES -->
+      <section id="niveles" class="hidden">
+
+        <div class="panel">
+          <h2>⭐ Sistema de niveles</h2>
+
+          <p>
+            Configura el sistema de XP y niveles de DARK FF V1.
+          </p>
+
+          <label>Canal de niveles</label>
+
+          <select>
+            <option>Selecciona un canal</option>
+          </select>
+
+          <button class="button">
+            💾 Guardar configuración
+          </button>
+        </div>
+
+      </section>
+
+      <footer>
+        DARK FF V1 © 2026
+      </footer>
+
+    </main>
+
+  </div>
+
+
+  <script>
+
+    function mostrar(id, boton) {
+
+      const secciones = [
+        "inicio",
+        "bienvenida",
+        "despedida",
+        "moderacion",
+        "tickets",
+        "niveles"
+      ];
+
+      secciones.forEach(seccion => {
+        document.getElementById(seccion).classList.add("hidden");
+      });
+
+      document.getElementById(id).classList.remove("hidden");
+
+      document.querySelectorAll(".menu button")
+        .forEach(btn => btn.classList.remove("active"));
+
+      boton.classList.add("active");
+    }
+
+
+    function guardarBienvenida() {
+
+      const canal = document.getElementById("welcomeChannel").value;
+      const mensaje = document.getElementById("welcomeMessage").value;
+      const imagen = document.getElementById("welcomeImage").value;
+
+      if (!canal || !mensaje) {
+        alert("❌ Selecciona un canal y escribe un mensaje.");
+        return;
+      }
+
+      localStorage.setItem(
+        "darkff_bienvenida",
+        JSON.stringify({
+          canal: canal,
+          mensaje: mensaje,
+          imagen: imagen
+        })
+      );
+
+      alert("✅ Configuración de bienvenida guardada.");
+    }
+
+
+    function guardarDespedida() {
+
+      const mensaje =
+        document.getElementById("goodbyeMessage").value;
+
+      if (!mensaje) {
+        alert("❌ Escribe un mensaje.");
+        return;
+      }
+
+      localStorage.setItem(
+        "darkff_despedida",
+        mensaje
+      );
+
+      alert("✅ Configuración de despedida guardada.");
+    }
+
+  </script>
+
+</body>
+  </html>
