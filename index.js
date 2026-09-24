@@ -3,7 +3,6 @@ const express = require("express");
 const { Client, GatewayIntentBits, Collection, REST, Routes } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
-const handler = require("./handler");
 
 const app = express();
 app.get("/", (req, res) => res.send("DARK FF V1 ONLINE ✅"));
@@ -21,7 +20,7 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// CARGAR TODOS LOS COMANDOS DE /commands/info Y /commands/fun
+// CARGAR TODOS LOS COMANDOS
 const commandsPath = path.join(__dirname, "commands");
 const commandFolders = fs.readdirSync(commandsPath);
 const commands = [];
@@ -38,18 +37,12 @@ for (const folder of commandFolders) {
       client.commands.set(command.data.name, command);
       commands.push(command.data.toJSON());
       console.log(`✅ Comando cargado: ${command.data.name}`);
-    } else {
-      console.log(`[ADVERTENCIA] El comando en ${filePath} no tiene "data" o "execute"`);
     }
   }
 }
 
 client.once("ready", async () => {
   console.log(`✅ ${client.user.tag} conectado`);
-  console.log(`📡 Estoy en ${client.guilds.cache.size} servidores`);
-
-  // Activar XP automática
-  handler.client(client);
 
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   const route = process.env.GUILD_ID
@@ -64,30 +57,17 @@ client.once("ready", async () => {
   }
 });
 
-// MANEJAR INTERACCIONES /push /punch /help
+// MANEJAR INTERACCIONES
 client.on("interactionCreate", async interaction => {
   if (!interaction.isCommand()) return;
-
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
-
   try {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
     await interaction.reply({ content: "Hubo un error ejecutando este comando", ephemeral: true });
   }
-});
-
-// MANEJAR MENSAJES PARA XP
-client.on("messageCreate", handler);
-
-client.on("error", error => {
-  console.error("❌ Error del cliente:", error);
-});
-
-process.on("unhandledRejection", error => {
-  console.error("❌ Error no controlado:", error);
 });
 
 client.login(process.env.DISCORD_TOKEN);
