@@ -13,31 +13,19 @@ const {
   Events
 } = require("discord.js");
 
-// ========================================
-// CONFIGURACIÓN
-// ========================================
-
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 
-// ========================================
-// COMPROBAR VARIABLES
-// ========================================
-
 if (!TOKEN) {
-  console.error("❌ Falta DISCORD_TOKEN en las variables de entorno.");
+  console.error("❌ Falta DISCORD_TOKEN.");
   process.exit(1);
 }
 
 if (!CLIENT_ID) {
-  console.error("❌ Falta CLIENT_ID en las variables de entorno.");
+  console.error("❌ Falta CLIENT_ID.");
   process.exit(1);
 }
-
-// ========================================
-// CLIENTE DISCORD
-// ========================================
 
 const client = new Client({
   intents: [
@@ -48,96 +36,109 @@ const client = new Client({
   ]
 });
 
-// ========================================
-// COLECCIÓN DE COMANDOS
-// ========================================
-
 client.commands = new Collection();
 
-const commandsPath = path.join(__dirname, "comandos");
+const commands = [];
 
-if (!fs.existsSync(commandsPath)) {
-  console.error("❌ No existe la carpeta comandos.");
-  process.exit(1);
+// ========================================
+// BUSCAR COMANDOS EN TODAS LAS SUBCARPETAS
+// ========================================
+
+function buscarArchivos(dir) {
+  let archivos = [];
+
+  if (!fs.existsSync(dir)) {
+    return archivos;
+  }
+
+  for (const archivo of fs.readdirSync(dir)) {
+    const ruta = path.join(dir, archivo);
+    const stat = fs.statSync(ruta);
+
+    if (stat.isDirectory()) {
+      archivos = archivos.concat(buscarArchivos(ruta));
+    } else if (archivo.endsWith(".js")) {
+      archivos.push(ruta);
+    }
+  }
+
+  return archivos;
 }
 
-const commandFiles = fs
-  .readdirSync(commandsPath)
-  .filter(file => file.endsWith(".js"));
+// ========================================
+// CARGAR COMANDOS
+// ========================================
 
-const commands = [];
+const comandosPath = path.join(__dirname, "comandos");
+
+if (!fs.existsSync(comandosPath)) {
+  fs.mkdirSync(comandosPath, { recursive: true });
+}
+
+const archivos = buscarArchivos(comandosPath);
 
 console.log("========================================");
 console.log("📦 CARGANDO COMANDOS");
 console.log("========================================");
 
-// ========================================
-// CARGAR TODOS LOS ARCHIVOS
-// ========================================
-
-for (const file of commandFiles) {
+for (const archivo of archivos) {
   try {
-    const filePath = path.join(commandsPath, file);
-    const loaded = require(filePath);
+    delete require.cache[require.resolve(archivo)];
 
-    const commandList = Array.isArray(loaded)
-      ? loaded
-      : [loaded];
+    const comando = require(archivo);
 
-    for (const command of commandList) {
+    const lista = Array.isArray(comando)
+      ? comando
+      : [comando];
 
-      if (!command || !command.data || !command.execute) {
-        console.error(`❌ ${file}: comando inválido.`);
+    for (const cmd of lista) {
+      if (!cmd || !cmd.data || !cmd.execute) {
+        console.error(
+          `❌ Comando inválido: ${archivo}`
+        );
         continue;
       }
 
-      const name = command.data.name;
+      const nombre = cmd.data.name;
 
-      if (!name) {
-        console.error(`❌ ${file}: el comando no tiene nombre.`);
+      if (client.commands.has(nombre)) {
+        console.error(
+          `❌ Comando duplicado: /${nombre}`
+        );
         continue;
       }
 
-      if (client.commands.has(name)) {
-        console.error(`❌ Comando duplicado: /${name}`);
-        continue;
-      }
+      client.commands.set(nombre, cmd);
+      commands.push(cmd.data.toJSON());
 
-      client.commands.set(name, command);
-      commands.push(command.data.toJSON());
-
-      console.log(`✅ /${name}`);
+      console.log(`✅ /${nombre}`);
     }
 
   } catch (error) {
-    console.error(`❌ Error cargando ${file}:`);
+    console.error(
+      `❌ Error cargando ${archivo}`
+    );
     console.error(error);
   }
 }
 
 console.log("========================================");
-console.log(`📊 TOTAL: ${commands.length} comandos`);
+console.log(`📊 Comandos cargados: ${commands.length}`);
 console.log("========================================");
 
 // ========================================
-// REST
+// REGISTRO DE COMANDOS
 // ========================================
 
 const rest = new REST({
   version: "10"
 }).setToken(TOKEN);
 
-// ========================================
-// REGISTRAR COMANDOS
-// ========================================
-
 async function registrarComandos() {
   try {
-
     console.log("🔄 Registrando comandos...");
 
     if (GUILD_ID) {
-
       await rest.put(
         Routes.applicationGuildCommands(
           CLIENT_ID,
@@ -153,7 +154,6 @@ async function registrarComandos() {
       );
 
     } else {
-
       await rest.put(
         Routes.applicationCommands(CLIENT_ID),
         {
@@ -167,8 +167,7 @@ async function registrarComandos() {
     }
 
   } catch (error) {
-
-    console.error("❌ ERROR REGISTRANDO COMANDOS:");
+    console.error("❌ Error registrando comandos:");
     console.error(error);
   }
 }
@@ -178,127 +177,90 @@ async function registrarComandos() {
 // ========================================
 
 client.once(Events.ClientReady, async () => {
-
   console.log("========================================");
-  console.log(`🤖 DARK FF V1 conectado`);
-  console.log(`👤 Usuario: ${client.user.tag}`);
-  console.log(`🆔 ID: ${client.user.id}`);
+  console.log("🤖 DARK FF V1 ONLINE");
+  console.log(`👤 ${client.user.tag}`);
+  console.log(`🆔 ${client.user.id}`);
   console.log("========================================");
 
   await registrarComandos();
 });
 
 // ========================================
-// INTERACCIONES
+// EJECUTAR COMANDOS
 // ========================================
 
 client.on(Events.InteractionCreate, async interaction => {
-
   if (!interaction.isChatInputCommand()) {
     return;
   }
 
   console.log(
-    `📥 Comando recibido: /${interaction.commandName}`
+    `📥 /${interaction.commandName}`
   );
 
-  const command = client.commands.get(
+  const comando = client.commands.get(
     interaction.commandName
   );
 
-  // ======================================
-  // COMANDO NO ENCONTRADO
-  // ======================================
-
-  if (!command) {
-
+  if (!comando) {
     console.error(
-      `❌ /${interaction.commandName} no existe en client.commands`
+      `❌ No se encontró /${interaction.commandName}`
     );
 
-    try {
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: "❌ Este comando no está cargado en el bot.",
+        content: "❌ Ese comando no está cargado.",
         ephemeral: true
-      });
-    } catch (error) {
-      console.error("❌ No se pudo responder:", error);
+      }).catch(() => {});
     }
 
     return;
   }
 
-  // ======================================
-  // EJECUTAR COMANDO
-  // ======================================
-
   try {
+    await comando.execute(interaction);
 
     console.log(
-      `⚙️ Ejecutando: /${interaction.commandName}`
-    );
-
-    await command.execute(interaction);
-
-    console.log(
-      `✅ Ejecutado: /${interaction.commandName}`
+      `✅ /${interaction.commandName} ejecutado`
     );
 
   } catch (error) {
-
     console.error(
-      `❌ ERROR EN /${interaction.commandName}:`
+      `❌ Error en /${interaction.commandName}:`
     );
 
     console.error(error);
 
-    const respuesta = {
-      content: "❌ Ocurrió un error al ejecutar este comando.",
+    const mensaje = {
+      content: "❌ Ocurrió un error al ejecutar el comando.",
       ephemeral: true
     };
 
     try {
-
       if (interaction.replied || interaction.deferred) {
-
-        await interaction.followUp(respuesta);
-
+        await interaction.followUp(mensaje);
       } else {
-
-        await interaction.reply(respuesta);
-
+        await interaction.reply(mensaje);
       }
-
-    } catch (replyError) {
-
-      console.error(
-        "❌ No se pudo enviar el mensaje de error:",
-        replyError
-      );
-    }
+    } catch {}
   }
 });
 
 // ========================================
-// SERVIDOR PARA RAILWAY / RENDER
+// SERVIDOR WEB PARA RAILWAY / RENDER
 // ========================================
 
 const PORT = process.env.PORT || 3000;
 
-const server = http.createServer((req, res) => {
-
+http.createServer((req, res) => {
   res.writeHead(200, {
     "Content-Type": "text/plain; charset=utf-8"
   });
 
-  res.end("DARK FF V1 está funcionando correctamente.");
-});
-
-server.listen(PORT, () => {
-
-  console.log(
-    `🌐 Servidor HTTP activo en puerto ${PORT}`
-  );
+  res.end("DARK FF V1 está funcionando.");
+}).listen(PORT, () => {
+  console.log(`🌐 Puerto ${PORT} activo`);
 });
 
 // ========================================
@@ -307,9 +269,9 @@ server.listen(PORT, () => {
 
 client.login(TOKEN)
   .then(() => {
-    console.log("🔐 Login de Discord iniciado...");
+    console.log("🔐 Conectando con Discord...");
   })
   .catch(error => {
-    console.error("❌ ERROR AL CONECTAR CON DISCORD:");
+    console.error("❌ Error al iniciar sesión:");
     console.error(error);
   });
