@@ -51,7 +51,10 @@ function respuesta(texto, color = 0x5865f2) {
 
 const comandos = [];
 
-// 1. BAN
+// =====================================================
+// BAN
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("ban")
@@ -104,7 +107,10 @@ comandos.push({
   }
 });
 
-// 2. UNBAN
+// =====================================================
+// UNBAN
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("unban")
@@ -136,7 +142,10 @@ comandos.push({
   }
 });
 
-// 3. KICK
+// =====================================================
+// KICK
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("kick")
@@ -189,7 +198,10 @@ comandos.push({
   }
 });
 
-// 4. TIMEOUT
+// =====================================================
+// TIMEOUT
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("timeout")
@@ -201,7 +213,7 @@ comandos.push({
     )
     .addIntegerOption(o =>
       o.setName("minutos")
-        .setDescription("Duración")
+        .setDescription("Duración en minutos")
         .setMinValue(1)
         .setMaxValue(40320)
         .setRequired(true)
@@ -221,7 +233,7 @@ comandos.push({
 
     if (!miembro || !miembro.moderatable) {
       return interaction.reply(
-        respuesta("❌ No puedo aplicar timeout.", 0xed4245)
+        respuesta("❌ No puedo aplicar timeout a ese usuario.", 0xed4245)
       );
     }
 
@@ -239,7 +251,10 @@ comandos.push({
   }
 });
 
-// 5. UNTIMEOUT
+// =====================================================
+// UNTIMEOUT
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("untimeout")
@@ -275,11 +290,14 @@ comandos.push({
   }
 });
 
-// 6. CLEAR
+// =====================================================
+// PURGE
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
-    .setName("clear")
-    .setDescription("Elimina mensajes")
+    .setName("purge")
+    .setDescription("Elimina mensajes del canal")
     .addIntegerOption(o =>
       o.setName("cantidad")
         .setDescription("Cantidad de mensajes")
@@ -295,51 +313,29 @@ comandos.push({
   async execute(interaction) {
     const cantidad = interaction.options.getInteger("cantidad");
 
-    const mensajes = await interaction.channel.bulkDelete(
-      cantidad,
-      true
-    );
+    try {
+      const mensajes = await interaction.channel.bulkDelete(
+        cantidad,
+        true
+      );
 
-    return interaction.reply({
-      content: `🧹 Eliminados **${mensajes.size}** mensajes.`,
-      ephemeral: true
-    });
+      return interaction.reply({
+        content: `🧹 Se eliminaron **${mensajes.size}** mensajes.`,
+        ephemeral: true
+      });
+    } catch {
+      return interaction.reply({
+        content: "❌ No pude eliminar los mensajes.",
+        ephemeral: true
+      });
+    }
   }
 });
 
-// 7. PURGE
-comandos.push({
-  data: new SlashCommandBuilder()
-    .setName("purge")
-    .setDescription("Limpia mensajes del canal")
-    .addIntegerOption(o =>
-      o.setName("cantidad")
-        .setDescription("Cantidad")
-        .setMinValue(1)
-        .setMaxValue(100)
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .setDMPermission(false),
+// =====================================================
+// LOCK
+// =====================================================
 
-  category: "moderacion",
-
-  async execute(interaction) {
-    const cantidad = interaction.options.getInteger("cantidad");
-
-    const mensajes = await interaction.channel.bulkDelete(
-      cantidad,
-      true
-    );
-
-    return interaction.reply({
-      content: `🧹 Purga completada: **${mensajes.size}** mensajes.`,
-      ephemeral: true
-    });
-  }
-});
-
-// 8. LOCK
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("lock")
@@ -350,18 +346,27 @@ comandos.push({
   category: "moderacion",
 
   async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(
-      interaction.guild.roles.everyone,
-      { SendMessages: false }
-    );
+    try {
+      await interaction.channel.permissionOverwrites.edit(
+        interaction.guild.roles.everyone,
+        { SendMessages: false }
+      );
 
-    return interaction.reply(
-      respuesta("🔒 Canal bloqueado.", 0xed4245)
-    );
+      return interaction.reply(
+        respuesta("🔒 Canal bloqueado.", 0xed4245)
+      );
+    } catch {
+      return interaction.reply(
+        respuesta("❌ No pude bloquear el canal.", 0xed4245)
+      );
+    }
   }
 });
 
-// 9. UNLOCK
+// =====================================================
+// UNLOCK
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("unlock")
@@ -372,18 +377,27 @@ comandos.push({
   category: "moderacion",
 
   async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(
-      interaction.guild.roles.everyone,
-      { SendMessages: null }
-    );
+    try {
+      await interaction.channel.permissionOverwrites.edit(
+        interaction.guild.roles.everyone,
+        { SendMessages: null }
+      );
 
-    return interaction.reply(
-      respuesta("🔓 Canal desbloqueado.", 0x57f287)
-    );
+      return interaction.reply(
+        respuesta("🔓 Canal desbloqueado.", 0x57f287)
+      );
+    } catch {
+      return interaction.reply(
+        respuesta("❌ No pude desbloquear el canal.", 0xed4245)
+      );
+    }
   }
 });
 
-// 10. SLOWMODE
+// =====================================================
+// SLOWMODE
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("slowmode")
@@ -403,20 +417,29 @@ comandos.push({
   async execute(interaction) {
     const segundos = interaction.options.getInteger("segundos");
 
-    await interaction.channel.setRateLimitPerUser(segundos);
+    try {
+      await interaction.channel.setRateLimitPerUser(segundos);
 
-    return interaction.reply(
-      respuesta(
-        segundos === 0
-          ? "⚡ Modo lento desactivado."
-          : `🐌 Modo lento: **${segundos}s**.`,
-        0x5865f2
-      )
-    );
+      return interaction.reply(
+        respuesta(
+          segundos === 0
+            ? "⚡ Modo lento desactivado."
+            : `🐌 Modo lento establecido en **${segundos} segundos**.`,
+          0x5865f2
+        )
+      );
+    } catch {
+      return interaction.reply(
+        respuesta("❌ No pude cambiar el modo lento.", 0xed4245)
+      );
+    }
   }
 });
 
-// 11. WARN
+// =====================================================
+// WARN
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("warn")
@@ -443,10 +466,7 @@ comandos.push({
       "Sin razón especificada";
 
     const db = cargarDB();
-    const servidor = obtenerServidor(
-      db,
-      interaction.guild.id
-    );
+    const servidor = obtenerServidor(db, interaction.guild.id);
 
     if (!servidor.warnings[usuario.id]) {
       servidor.warnings[usuario.id] = [];
@@ -471,7 +491,10 @@ comandos.push({
   }
 });
 
-// 12. WARNINGS
+// =====================================================
+// WARNINGS
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("warnings")
@@ -490,11 +513,7 @@ comandos.push({
     const usuario = interaction.options.getUser("usuario");
 
     const db = cargarDB();
-    const servidor = obtenerServidor(
-      db,
-      interaction.guild.id
-    );
-
+    const servidor = obtenerServidor(db, interaction.guild.id);
     const lista = servidor.warnings[usuario.id] || [];
 
     if (lista.length === 0) {
@@ -508,7 +527,9 @@ comandos.push({
 
     const texto = lista
       .slice(-10)
-      .map((warn, i) => `**${i + 1}.** ${warn.razon}`)
+      .map((warn, i) =>
+        `**${i + 1}.** ${warn.razon}`
+      )
       .join("\n");
 
     return interaction.reply({
@@ -525,7 +546,10 @@ comandos.push({
   }
 });
 
-// 13. CLEARWARNS
+// =====================================================
+// CLEARWARNS
+// =====================================================
+
 comandos.push({
   data: new SlashCommandBuilder()
     .setName("clearwarns")
@@ -544,10 +568,7 @@ comandos.push({
     const usuario = interaction.options.getUser("usuario");
 
     const db = cargarDB();
-    const servidor = obtenerServidor(
-      db,
-      interaction.guild.id
-    );
+    const servidor = obtenerServidor(db, interaction.guild.id);
 
     servidor.warnings[usuario.id] = [];
 
@@ -561,3 +582,608 @@ comandos.push({
     );
   }
 });
+
+// =====================================================
+// NICK
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("nick")
+    .setDescription("Cambia el apodo de un usuario")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .addStringOption(o =>
+      o.setName("apodo")
+        .setDescription("Nuevo apodo")
+        .setMaxLength(32)
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+    const apodo = interaction.options.getString("apodo");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro) {
+      return interaction.reply(
+        respuesta("❌ Usuario no encontrado.", 0xed4245)
+      );
+    }
+
+    if (!miembro.manageable) {
+      return interaction.reply(
+        respuesta("❌ No puedo cambiar el apodo de ese usuario.", 0xed4245)
+      );
+    }
+
+    await miembro.setNickname(
+      apodo,
+      `Apodo cambiado por ${interaction.user.tag}`
+    );
+
+    return interaction.reply(
+      respuesta(
+        `✏️ Apodo de **${usuario.tag}** cambiado a **${apodo}**.`,
+        0x57f287
+      )
+    );
+  }
+});
+
+// =====================================================
+// RESETNICK
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("resetnick")
+    .setDescription("Restablece el apodo de un usuario")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro || !miembro.manageable) {
+      return interaction.reply(
+        respuesta("❌ No puedo cambiar el apodo de ese usuario.", 0xed4245)
+      );
+    }
+
+    await miembro.setNickname(null);
+
+    return interaction.reply(
+      respuesta(`♻️ Apodo de **${usuario.tag}** restablecido.`, 0x57f287)
+    );
+  }
+});
+
+// =====================================================
+// ADDROLE
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("addrole")
+    .setDescription("Añade un rol a un usuario")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .addRoleOption(o =>
+      o.setName("rol")
+        .setDescription("Rol")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+    const rol = interaction.options.getRole("rol");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro) {
+      return interaction.reply(
+        respuesta("❌ Usuario no encontrado.", 0xed4245)
+      );
+    }
+
+    if (rol.managed || rol.position >= interaction.guild.members.me.roles.highest.position) {
+      return interaction.reply(
+        respuesta("❌ No puedo administrar ese rol.", 0xed4245)
+      );
+    }
+
+    await miembro.roles.add(rol);
+
+    return interaction.reply(
+      respuesta(
+        `✅ Se añadió el rol ${rol} a **${usuario.tag}**.`,
+        0x57f287
+      )
+    );
+  }
+});
+
+// =====================================================
+// REMOVEROLE
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("removerole")
+    .setDescription("Quita un rol de un usuario")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .addRoleOption(o =>
+      o.setName("rol")
+        .setDescription("Rol")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+    const rol = interaction.options.getRole("rol");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro) {
+      return interaction.reply(
+        respuesta("❌ Usuario no encontrado.", 0xed4245)
+      );
+    }
+
+    if (rol.managed || rol.position >= interaction.guild.members.me.roles.highest.position) {
+      return interaction.reply(
+        respuesta("❌ No puedo administrar ese rol.", 0xed4245)
+      );
+    }
+
+    await miembro.roles.remove(rol);
+
+    return interaction.reply(
+      respuesta(
+        `✅ Se quitó el rol ${rol} a **${usuario.tag}**.`,
+        0x57f287
+      )
+    );
+  }
+});
+
+// =====================================================
+// VOICEKICK
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("voicekick")
+    .setDescription("Expulsa a un usuario de un canal de voz")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.MoveMembers)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+        const usuario = interaction.options.getUser("usuario");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro || !miembro.voice.channel) {
+      return interaction.reply(
+        respuesta(
+          "❌ Ese usuario no está en un canal de voz.",
+          0xed4245
+        )
+      );
+    }
+
+    try {
+      await miembro.voice.disconnect(
+        `Desconectado por ${interaction.user.tag}`
+      );
+
+      return interaction.reply(
+        respuesta(
+          `🔊 **${usuario.tag}** fue desconectado del canal de voz.`,
+          0x57f287
+        )
+      );
+    } catch (error) {
+      console.error("Error en voicekick:", error);
+
+      return interaction.reply(
+        respuesta(
+          "❌ No pude desconectar a ese usuario.",
+          0xed4245
+        )
+      );
+    }
+  }
+});
+
+// =====================================================
+// VOICEMUTE
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("voicemute")
+    .setDescription("Silencia a un usuario en voz")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.MuteMembers)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro || !miembro.voice.channel) {
+      return interaction.reply(
+        respuesta("❌ Ese usuario no está en voz.", 0xed4245)
+      );
+    }
+
+    try {
+      await miembro.voice.setMute(true);
+
+      return interaction.reply(
+        respuesta(
+          `🔇 **${usuario.tag}** fue silenciado en voz.`,
+          0xf1c40f
+        )
+      );
+    } catch {
+      return interaction.reply(
+        respuesta("❌ No pude silenciar al usuario.", 0xed4245)
+      );
+    }
+  }
+});
+
+// =====================================================
+// VOICEUNMUTE
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("voiceunmute")
+    .setDescription("Quita el silencio de un usuario")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.MuteMembers)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro || !miembro.voice.channel) {
+      return interaction.reply(
+        respuesta("❌ Ese usuario no está en voz.", 0xed4245)
+      );
+    }
+
+    try {
+      await miembro.voice.setMute(false);
+
+      return interaction.reply(
+        respuesta(
+          `🔊 **${usuario.tag}** puede hablar nuevamente.`,
+          0x57f287
+        )
+      );
+    } catch {
+      return interaction.reply(
+        respuesta("❌ No pude quitar el silencio.", 0xed4245)
+      );
+    }
+  }
+});
+
+// =====================================================
+// DEHOIST
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("dehoist")
+    .setDescription("Limpia símbolos del inicio del apodo")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    if (!miembro || !miembro.manageable) {
+      return interaction.reply(
+        respuesta(
+          "❌ No puedo modificar el apodo de ese usuario.",
+          0xed4245
+        )
+      );
+    }
+
+    const nombre = miembro.nickname || usuario.username;
+
+    const nuevoNombre = nombre
+      .replace(/^[^a-zA-Z0-9ÁÉÍÓÚáéíóúÑñ]+/, "")
+      .trim();
+
+    if (!nuevoNombre) {
+      return interaction.reply(
+        respuesta("❌ No se pudo crear un apodo válido.", 0xed4245)
+      );
+    }
+
+    try {
+      await miembro.setNickname(nuevoNombre);
+
+      return interaction.reply(
+        respuesta(
+          `✏️ Apodo actualizado: **${nuevoNombre}**`,
+          0x57f287
+        )
+      );
+    } catch {
+      return interaction.reply(
+        respuesta("❌ No pude cambiar el apodo.", 0xed4245)
+      );
+    }
+  }
+});
+
+// =====================================================
+// MODINFO
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("modinfo")
+    .setDescription("Información de los comandos de moderación")
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const embed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setTitle("🛡️ MODERACIÓN — DARK FF V1")
+      .setDescription(
+        "Comandos disponibles para moderar el servidor."
+      )
+      .addFields(
+        {
+          name: "🔨 Usuarios",
+          value: "`ban` `unban` `kick` `timeout` `untimeout`"
+        },
+        {
+          name: "🧹 Mensajes",
+          value: "`clear` `purge`"
+        },
+        {
+          name: "🔒 Canales",
+          value: "`lock` `unlock` `slowmode`"
+        },
+        {
+          name: "⚠️ Advertencias",
+          value: "`warn` `warnings` `clearwarns`"
+        },
+        {
+          name: "🔊 Voz",
+          value: "`voicekick` `voicemute` `voiceunmute`"
+        }
+      )
+      .setFooter({
+        text: "DARK FF V1"
+      });
+
+    return interaction.reply({
+      embeds: [embed]
+    });
+  }
+});
+
+// =====================================================
+// CHECKPERMS
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("checkperms")
+    .setDescription("Muestra tus permisos en el servidor")
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const permisos = interaction.member.permissions;
+
+    const lista = [
+      ["Administrador", PermissionFlagsBits.Administrator],
+      ["Banear miembros", PermissionFlagsBits.BanMembers],
+      ["Expulsar miembros", PermissionFlagsBits.KickMembers],
+      ["Moderate Members", PermissionFlagsBits.ModerateMembers],
+      ["Gestionar mensajes", PermissionFlagsBits.ManageMessages],
+      ["Gestionar canales", PermissionFlagsBits.ManageChannels],
+      ["Gestionar roles", PermissionFlagsBits.ManageRoles],
+      ["Gestionar apodos", PermissionFlagsBits.ManageNicknames]
+    ];
+
+    const texto = lista
+      .map(([nombre, permiso]) =>
+        `${permisos.has(permiso) ? "✅" : "❌"} ${nombre}`
+      )
+      .join("\n");
+
+    return interaction.reply(
+      respuesta(`🛡️ **TUS PERMISOS**\n\n${texto}`)
+    );
+  }
+});
+
+// =====================================================
+// USERINFO
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("userinfo")
+    .setDescription("Muestra información de un usuario")
+    .addUserOption(o =>
+      o.setName("usuario")
+        .setDescription("Usuario")
+        .setRequired(false)
+    )
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    const usuario =
+      interaction.options.getUser("usuario") ||
+      interaction.user;
+
+    const miembro = await interaction.guild.members
+      .fetch(usuario.id)
+      .catch(() => null);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x5865f2)
+      .setTitle(`👤 ${usuario.tag}`)
+      .setThumbnail(usuario.displayAvatarURL())
+      .addFields(
+        {
+          name: "🆔 ID",
+          value: `\`${usuario.id}\``,
+          inline: true
+        },
+        {
+          name: "📅 Cuenta creada",
+          value: `<t:${Math.floor(
+            usuario.createdTimestamp / 1000
+          )}:R>`,
+          inline: true
+        }
+      );
+
+    if (miembro?.joinedTimestamp) {
+      embed.addFields({
+        name: "📥 Entró al servidor",
+        value: `<t:${Math.floor(
+          miembro.joinedTimestamp / 1000
+        )}:R>`,
+        inline: true
+      });
+    }
+
+    return interaction.reply({
+      embeds: [embed]
+    });
+  }
+});
+
+// =====================================================
+// MODERACION
+// =====================================================
+
+comandos.push({
+  data: new SlashCommandBuilder()
+    .setName("moderacion")
+    .setDescription("Muestra todos los comandos de moderación")
+    .setDMPermission(false),
+
+  category: "moderacion",
+
+  async execute(interaction) {
+    return interaction.reply(
+      "🛡️ **MODERACIÓN — DARK FF V1**\n\n" +
+      "🔨 `/ban` `/unban` `/kick`\n" +
+      "🔇 `/timeout` `/untimeout`\n" +
+      "🧹 `/clear` `/purge`\n" +
+      "🔒 `/lock` `/unlock` `/slowmode`\n" +
+      "⚠️ `/warn` `/warnings` `/clearwarns`\n" +
+      "✏️ `/dehoist`\n" +
+      "🔊 `/voicekick` `/voicemute` `/voiceunmute`\n" +
+      "🛡️ `/modinfo` `/checkperms` `/userinfo`"
+    );
+  }
+});
+
+// =====================================================
+// FINAL
+// =====================================================
+
+module.exports = comandos;
