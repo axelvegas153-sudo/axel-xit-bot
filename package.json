@@ -1,7 +1,7 @@
 {
-  "name": "dark-bio-ff-bot",
+  "name": "dark-ff-v1",
   "version": "1.0.0",
-  "description": "Bot público de Discord DARK BIO FF",
+  "description": "Bot público de Discord DARK FF V1",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
