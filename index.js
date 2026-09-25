@@ -10,17 +10,11 @@ const {
   Collection,
   REST,
   Routes,
-  Events,
-  EmbedBuilder
+  Events
 } = require("discord.js");
-
-// ======================================================
-// CONFIGURACIÓN
-// ======================================================
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
-const PORT = process.env.PORT || 3000;
 
 if (!TOKEN) {
   console.error("❌ Falta DISCORD_TOKEN en las variables de entorno.");
@@ -32,10 +26,6 @@ if (!CLIENT_ID) {
   process.exit(1);
 }
 
-// ======================================================
-// CLIENTE
-// ======================================================
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -45,264 +35,158 @@ const client = new Client({
   ]
 });
 
-// ======================================================
-// COLECCIÓN DE COMANDOS
-// ======================================================
-
 client.commands = new Collection();
 
-const commandsPath = path.join(__dirname, "commands");
+const commandsPath = path.join(__dirname, "comandos");
 
 if (!fs.existsSync(commandsPath)) {
-  fs.mkdirSync(commandsPath, { recursive: true });
+  console.error("❌ No existe la carpeta 'comandos'.");
+  process.exit(1);
 }
 
 const commandFiles = fs
   .readdirSync(commandsPath)
   .filter(file => file.endsWith(".js"));
 
+const commands = [];
+
 for (const file of commandFiles) {
   try {
     const filePath = path.join(commandsPath, file);
     const loaded = require(filePath);
 
-    const commands = Array.isArray(loaded)
+    const commandList = Array.isArray(loaded)
       ? loaded
       : [loaded];
 
-    for (const command of commands) {
-      if (!command?.data || !command?.execute) {
-        console.error(`❌ Comando inválido en ${file}`);
-        continue;
-      }
+    for (const command of commandList) {
 
-      const commandName = command.data.name;
-
-      if (!commandName) {
-        console.error(`❌ Comando sin nombre en ${file}`);
-        continue;
-      }
-
-      if (client.commands.has(commandName)) {
+      if (!command.data || !command.execute) {
         console.error(
-          `⚠️ Comando duplicado ignorado: /${commandName} (${file})`
+          `❌ ${file} contiene un comando inválido.`
         );
         continue;
       }
 
-      client.commands.set(commandName, command);
+      const name = command.data.name;
 
-      console.log(`✅ Cargado: /${commandName}`);
+      if (client.commands.has(name)) {
+        console.error(
+          `❌ Comando duplicado: /${name}`
+        );
+        continue;
+      }
+
+      client.commands.set(name, command);
+
+      commands.push(
+        command.data.toJSON()
+      );
+
+      console.log(
+        `✅ Cargado: /${name}`
+      );
     }
+
   } catch (error) {
-    console.error(`❌ Error cargando ${file}:`);
-    console.error(error);
+    console.error(
+      `❌ Error cargando ${file}:`,
+      error
+    );
   }
 }
 
-// ======================================================
-// REGISTRAR COMANDOS
-// ======================================================
+const rest = new REST({
+  version: "10"
+}).setToken(TOKEN);
 
 async function registrarComandos() {
-  const rest = new REST({ version: "10" }).setToken(TOKEN);
+  try {
+    console.log(
+      `🔄 Registrando ${commands.length} comandos...`
+    );
 
-  const comandos = [...client.commands.values()]
-    .map(command => command.data.toJSON());
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      {
+        body: commands
+      }
+    );
 
-  console.log(`📤 Registrando ${comandos.length} comandos...`);
+    console.log(
+      `✅ ${commands.length} comandos registrados correctamente.`
+    );
 
-  await rest.put(
-    Routes.applicationCommands(CLIENT_ID),
-    {
-      body: comandos
-    }
-  );
-
-  console.log("✅ Comandos registrados correctamente.");
+  } catch (error) {
+    console.error(
+      "❌ Error registrando comandos:",
+      error
+    );
+  }
 }
 
-// ======================================================
-// BOT LISTO
-// ======================================================
+client.once(Events.ClientReady, async () => {
 
-client.once(Events.ClientReady, async readyClient => {
-  console.log("======================================");
-  console.log("🤖 DARK FF V1");
-  console.log(`✅ Conectado como ${readyClient.user.tag}`);
-  console.log(`📜 Comandos: ${client.commands.size}`);
-  console.log(`🌐 Servidores: ${readyClient.guilds.cache.size}`);
-  console.log("======================================");
+  console.log(
+    `🤖 DARK FF V1 conectado como ${client.user.tag}`
+  );
 
-  try {
-    await registrarComandos();
-  } catch (error) {
-    console.error("❌ Error registrando comandos:");
-    console.error(error);
-  }
-
-  readyClient.user.setPresence({
-    activities: [
-      {
-        name: "/ayuda • DARK FF V1",
-        type: 0
-      }
-    ],
-    status: "online"
-  });
+  await registrarComandos();
 });
-
-// ======================================================
-// EJECUTAR COMANDOS
-// ======================================================
 
 client.on(Events.InteractionCreate, async interaction => {
-  try {
-    // ------------------------------
-    // SLASH COMMAND
-    // ------------------------------
 
-    if (interaction.isChatInputCommand()) {
-      const command = client.commands.get(
-        interaction.commandName
-      );
-
-      if (!command) {
-        return interaction.reply({
-          content: "❌ Ese comando no existe.",
-          ephemeral: true
-        });
-      }
-
-      await command.execute(interaction, client);
-      return;
-    }
-
-    // ------------------------------
-    // BOTONES
-    // ------------------------------
-
-    if (interaction.isButton()) {
-      const categorias = {
-        help_general: "generales",
-        help_moderacion: "moderacion",
-        help_diversion: "diversion",
-        help_economia: "economia",
-        help_niveles: "niveles",
-        help_informacion: "informacion",
-        help_utilidades: "utilidades",
-        help_configuracion: "configuracion",
-        help_administracion: "administracion"
-      };
-
-      const categoria = categorias[interaction.customId];
-
-      if (!categoria) {
-        return;
-      }
-
-      const comandosCategoria = [
-        ...client.commands.values()
-      ].filter(command =>
-        command.category === categoria
-      );
-
-      if (comandosCategoria.length === 0) {
-        return interaction.reply({
-          content:
-            "❌ Esta categoría todavía no tiene comandos.",
-          ephemeral: true
-        });
-      }
-
-      const nombres = comandosCategoria
-        .map(command => `• \`/${command.data.name}\``)
-        .join("\n");
-
-      const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle(
-          `📚 ${categoria.charAt(0).toUpperCase() + categoria.slice(1)}`
-        )
-        .setDescription(nombres)
-        .setFooter({
-          text: "DARK FF V1 • Soporte: @Axel XIT"
-        });
-
-      await interaction.reply({
-        embeds: [embed],
-        ephemeral: true
-      });
-    }
-  } catch (error) {
-    console.error("❌ Error ejecutando interacción:");
-    console.error(error);
-
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content:
-          "❌ Ocurrió un error al ejecutar este comando.",
-        ephemeral: true
-      }).catch(() => {});
-    } else {
-      await interaction.reply({
-        content:
-          "❌ Ocurrió un error al ejecutar este comando.",
-        ephemeral: true
-      }).catch(() => {});
-    }
-  }
-});
-
-// ======================================================
-// SERVIDOR WEB PARA RAILWAY
-// ======================================================
-
-const server = http.createServer((req, res) => {
-  if (req.url === "/api/status") {
-    res.writeHead(200, {
-      "Content-Type": "application/json"
-    });
-
-    res.end(JSON.stringify({
-      online: client.isReady(),
-      bot: "DARK FF V1",
-      commands: client.commands.size,
-      servers: client.guilds.cache.size
-    }));
-
+  if (!interaction.isChatInputCommand()) {
     return;
   }
 
+  const command =
+    client.commands.get(interaction.commandName);
+
+  if (!command) {
+
+    return interaction.reply({
+      content:
+        "❌ Este comando no está disponible. Reinicia el bot y vuelve a intentarlo.",
+      ephemeral: true
+    });
+  }
+
+  try {
+
+    await command.execute(interaction);
+
+  } catch (error) {
+
+    console.error(
+      `❌ Error ejecutando /${interaction.commandName}:`,
+      error
+    );
+
+    const respuesta = {
+      content:
+        "❌ Ocurrió un error al ejecutar este comando.",
+      ephemeral: true
+    };
+
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(respuesta).catch(() => {});
+    } else {
+      await interaction.reply(respuesta).catch(() => {});
+    }
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
   res.writeHead(200, {
-    "Content-Type": "text/plain; charset=utf-8"
+    "Content-Type": "text/plain"
   });
 
-  res.end(
-    "🤖 DARK FF V1 está funcionando correctamente."
-  );
+  res.end("DARK FF V1 está funcionando.");
+}).listen(PORT, () => {
+  console.log(`🌐 Servidor HTTP en puerto ${PORT}`);
 });
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🌐 Servidor web activo en el puerto ${PORT}`);
-});
-
-// ======================================================
-// ERRORES
-// ======================================================
-
-process.on("unhandledRejection", error => {
-  console.error("❌ Unhandled Rejection:");
-  console.error(error);
-});
-
-process.on("uncaughtException", error => {
-  console.error("❌ Uncaught Exception:");
-  console.error(error);
-});
-
-// ======================================================
-// LOGIN
-// ======================================================
 
 client.login(TOKEN);
