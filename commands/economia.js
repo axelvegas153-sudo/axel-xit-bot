@@ -1,23 +1,48 @@
-const fs = require("fs");
-const path = require("path");
 const {
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits
 } = require("discord.js");
 
-const databasePath = path.join(__dirname, "..", "database.json");
+const fs = require("fs");
+const path = require("path");
+
+const databasePath = path.join(
+  __dirname,
+  "..",
+  "database.json"
+);
 
 function cargarDB() {
   try {
     if (!fs.existsSync(databasePath)) {
-      fs.writeFileSync(databasePath, "{}");
+      return {
+        economia: {},
+        niveles: {},
+        servidores: {},
+        usuarios: {}
+      };
     }
 
-    return JSON.parse(fs.readFileSync(databasePath, "utf8"));
+    const db = JSON.parse(
+      fs.readFileSync(databasePath, "utf8")
+    );
+
+    db.economia ??= {};
+    db.niveles ??= {};
+    db.servidores ??= {};
+    db.usuarios ??= {};
+
+    return db;
   } catch (error) {
-    console.error("Error leyendo database.json:", error);
-    return {};
+    console.error("❌ Error leyendo database.json:", error);
+
+    return {
+      economia: {},
+      niveles: {},
+      servidores: {},
+      usuarios: {}
+    };
   }
 }
 
@@ -29,39 +54,56 @@ function guardarDB(db) {
 }
 
 function obtenerUsuario(db, id) {
-  if (!db.economia) db.economia = {};
-
   if (!db.economia[id]) {
     db.economia[id] = {
       dinero: 0,
       banco: 0,
-      inventario: []
+      ultimoDaily: 0
     };
   }
+
+  db.economia[id].dinero =
+    Number(db.economia[id].dinero) || 0;
+
+  db.economia[id].banco =
+    Number(db.economia[id].banco) || 0;
+
+  db.economia[id].ultimoDaily =
+    Number(db.economia[id].ultimoDaily) || 0;
 
   return db.economia[id];
 }
 
 module.exports = [
 
+  // /balance
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("balance")
-      .setDescription("Muestra tu dinero"),
+      .setDescription("Muestra tu dinero y dinero del banco"),
 
     async execute(interaction) {
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
       guardarDB(db);
 
+      const total =
+        usuario.dinero + usuario.banco;
+
       const embed = new EmbedBuilder()
         .setColor(0xE11D48)
-        .setTitle("💰 Tu balance")
+        .setTitle("💰 Balance")
         .setDescription(
-          `💵 Dinero: **${u.dinero}** monedas\n` +
-          `🏦 Banco: **${u.banco}** monedas`
+          `👤 **${interaction.user.username}**\n\n` +
+          `💵 Dinero: **$${usuario.dinero.toLocaleString()}**\n` +
+          `🏦 Banco: **$${usuario.banco.toLocaleString()}**\n` +
+          `💎 Total: **$${total.toLocaleString()}**`
+        )
+        .setThumbnail(
+          interaction.user.displayAvatarURL({
+            size: 256
+          })
         )
         .setFooter({
           text: "DARK FF V1 • Economía"
@@ -73,303 +115,316 @@ module.exports = [
     }
   },
 
+  // /daily
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("daily")
       .setDescription("Reclama tu recompensa diaria"),
 
     async execute(interaction) {
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
-      const recompensa = 500;
+      const ahora = Date.now();
+      const cooldown = 24 * 60 * 60 * 1000;
 
-      u.dinero += recompensa;
+      const restante =
+        cooldown - (ahora - usuario.ultimoDaily);
+
+      if (restante > 0) {
+        const horas = Math.floor(
+          restante / 3600000
+        );
+
+        const minutos = Math.floor(
+          (restante % 3600000) / 60000
+        );
+
+        return interaction.reply({
+          content:
+            `⏰ Ya reclamaste tu recompensa.\n` +
+            `Vuelve en **${horas}h ${minutos}m**.`,
+          ephemeral: true
+        });
+      }
+
+      const recompensa = 1000;
+
+      usuario.dinero += recompensa;
+      usuario.ultimoDaily = ahora;
 
       guardarDB(db);
 
-      await interaction.reply(
-        `🎁 ${interaction.user}, recibiste **${recompensa} monedas**.`
-      );
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x22C55E)
+            .setTitle("🎁 Recompensa diaria")
+            .setDescription(
+              `🎉 Recibiste **$${recompensa.toLocaleString()}**.\n\n` +
+              `💰 Dinero actual: **$${usuario.dinero.toLocaleString()}**`
+            )
+            .setFooter({
+              text: "DARK FF V1 • Economía"
+            })
+        ]
+      });
     }
   },
 
+  // /work
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("work")
-      .setDescription("Trabaja para ganar monedas"),
+      .setDescription("Trabaja para ganar dinero"),
 
     async execute(interaction) {
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
-      const ganancia =
-        Math.floor(Math.random() * 401) + 100;
+      const trabajos = [
+        "🎮 Jugaste unas partidas",
+        "🔧 Arreglaste algo",
+        "💻 Hiciste un trabajo online",
+        "📦 Entregaste un pedido",
+        "🛠️ Ayudaste en un proyecto"
+      ];
 
-      u.dinero += ganancia;
+      const trabajo =
+        trabajos[Math.floor(Math.random() * trabajos.length)];
+
+      const recompensa =
+        Math.floor(Math.random() * 501) + 500;
+
+      usuario.dinero += recompensa;
 
       guardarDB(db);
 
-      await interaction.reply(
-        `💼 Trabajaste y ganaste **${ganancia} monedas**.\n` +
-        `💰 Ahora tienes **${u.dinero} monedas**.`
-      );
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0x3B82F6)
+            .setTitle("💼 Trabajo completado")
+            .setDescription(
+              `${trabajo}\n\n` +
+              `💵 Ganaste: **$${recompensa.toLocaleString()}**\n` +
+              `💰 Balance: **$${usuario.dinero.toLocaleString()}**`
+            )
+        ]
+      });
     }
   },
 
+  // /pay
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("pay")
-      .setDescription("Envía monedas a otro usuario")
-      .addUserOption(o =>
-        o.setName("usuario")
-          .setDescription("Usuario que recibirá las monedas")
+      .setDescription("Envía dinero a otro usuario")
+      .addUserOption(option =>
+        option
+          .setName("usuario")
+          .setDescription("Usuario que recibirá el dinero")
           .setRequired(true)
       )
-      .addIntegerOption(o =>
-        o.setName("cantidad")
-          .setDescription("Cantidad de monedas")
+      .addIntegerOption(option =>
+        option
+          .setName("cantidad")
+          .setDescription("Cantidad de dinero")
           .setMinValue(1)
           .setRequired(true)
       ),
 
     async execute(interaction) {
-      const objetivo = interaction.options.getUser("usuario");
-      const cantidad = interaction.options.getInteger("cantidad");
+      const db = cargarDB();
 
-      if (objetivo.bot) {
+      const receptor =
+        interaction.options.getUser("usuario");
+
+      const cantidad =
+        interaction.options.getInteger("cantidad");
+
+      if (receptor.bot) {
         return interaction.reply({
           content: "❌ No puedes enviar dinero a un bot.",
           ephemeral: true
         });
       }
 
-      if (objetivo.id === interaction.user.id) {
+      if (receptor.id === interaction.user.id) {
         return interaction.reply({
           content: "❌ No puedes enviarte dinero a ti mismo.",
           ephemeral: true
         });
       }
 
-      const db = cargarDB();
+      const emisor = obtenerUsuario(
+        db,
+        interaction.user.id
+      );
 
-      const emisor = obtenerUsuario(db, interaction.user.id);
-      const receptor = obtenerUsuario(db, objetivo.id);
+      const usuarioReceptor = obtenerUsuario(
+        db,
+        receptor.id
+      );
 
       if (emisor.dinero < cantidad) {
         return interaction.reply({
-          content: "❌ No tienes suficientes monedas.",
+          content:
+            `❌ No tienes suficiente dinero.\n` +
+            `Tienes **$${emisor.dinero.toLocaleString()}**.`,
           ephemeral: true
         });
       }
 
       emisor.dinero -= cantidad;
-      receptor.dinero += cantidad;
+      usuarioReceptor.dinero += cantidad;
 
       guardarDB(db);
 
       await interaction.reply(
-        `💸 **${interaction.user.username}** envió ` +
-        `**${cantidad} monedas** a **${objetivo.username}**.`
+        `💸 ${interaction.user} envió **$${cantidad.toLocaleString()}** a ${receptor}.`
       );
     }
   },
 
+  // /deposit
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("deposit")
-      .setDescription("Deposita monedas en tu banco")
-      .addIntegerOption(o =>
-        o.setName("cantidad")
+      .setDescription("Deposita dinero en el banco")
+      .addIntegerOption(option =>
+        option
+          .setName("cantidad")
           .setDescription("Cantidad a depositar")
           .setMinValue(1)
           .setRequired(true)
       ),
 
     async execute(interaction) {
-      const cantidad = interaction.options.getInteger("cantidad");
-
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
-      if (u.dinero < cantidad) {
+      const cantidad =
+        interaction.options.getInteger("cantidad");
+
+      if (usuario.dinero < cantidad) {
         return interaction.reply({
-          content: "❌ No tienes suficientes monedas.",
+          content: "❌ No tienes suficiente dinero.",
           ephemeral: true
         });
       }
 
-      u.dinero -= cantidad;
-      u.banco += cantidad;
+      usuario.dinero -= cantidad;
+      usuario.banco += cantidad;
 
       guardarDB(db);
 
       await interaction.reply(
-        `🏦 Depositaste **${cantidad} monedas**.\n\n` +
-        `💵 Dinero: **${u.dinero}**\n` +
-        `🏦 Banco: **${u.banco}**`
+        `🏦 Depositaste **$${cantidad.toLocaleString()}** en el banco.`
       );
     }
   },
 
+  // /withdraw
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("withdraw")
-      .setDescription("Retira monedas de tu banco")
-      .addIntegerOption(o =>
-        o.setName("cantidad")
+      .setDescription("Retira dinero del banco")
+      .addIntegerOption(option =>
+        option
+          .setName("cantidad")
           .setDescription("Cantidad a retirar")
           .setMinValue(1)
           .setRequired(true)
       ),
 
     async execute(interaction) {
-      const cantidad = interaction.options.getInteger("cantidad");
-
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
-      if (u.banco < cantidad) {
+      const cantidad =
+        interaction.options.getInteger("cantidad");
+
+      if (usuario.banco < cantidad) {
         return interaction.reply({
-          content: "❌ No tienes suficientes monedas en el banco.",
+          content: "❌ No tienes suficiente dinero en el banco.",
           ephemeral: true
         });
       }
 
-      u.banco -= cantidad;
-      u.dinero += cantidad;
+      usuario.banco -= cantidad;
+      usuario.dinero += cantidad;
 
       guardarDB(db);
 
       await interaction.reply(
-        `💵 Retiraste **${cantidad} monedas**.\n\n` +
-        `💵 Dinero: **${u.dinero}**\n` +
-        `🏦 Banco: **${u.banco}**`
+        `💵 Retiraste **$${cantidad.toLocaleString()}** del banco.`
       );
     }
   },
 
+  // /depositall
   {
-    category: "economia",
-    data: new SlashCommandBuilder()
-      .setName("bank")
-      .setDescription("Muestra tu dinero del banco"),
-
-    async execute(interaction) {
-      const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
-
-      await interaction.reply(
-        `🏦 **Banco de ${interaction.user.username}**\n\n` +
-        `💰 Saldo: **${u.banco} monedas**`
-      );
-    }
-  },
-
-  {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("depositall")
-      .setDescription("Deposita todo tu dinero"),
+      .setDescription("Deposita todo tu dinero en el banco"),
 
     async execute(interaction) {
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
-      if (u.dinero <= 0) {
+      if (usuario.dinero <= 0) {
         return interaction.reply({
           content: "❌ No tienes dinero para depositar.",
           ephemeral: true
         });
       }
 
-      const cantidad = u.dinero;
+      const cantidad = usuario.dinero;
 
-      u.dinero = 0;
-      u.banco += cantidad;
+      usuario.dinero = 0;
+      usuario.banco += cantidad;
 
       guardarDB(db);
 
       await interaction.reply(
-        `🏦 Depositaste todo: **${cantidad} monedas**.`
+        `🏦 Depositaste todo: **$${cantidad.toLocaleString()}**.`
       );
     }
   },
 
+  // /withdrawall
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("withdrawall")
       .setDescription("Retira todo tu dinero del banco"),
 
     async execute(interaction) {
       const db = cargarDB();
-      const u = obtenerUsuario(db, interaction.user.id);
+      const usuario = obtenerUsuario(db, interaction.user.id);
 
-      if (u.banco <= 0) {
+      if (usuario.banco <= 0) {
         return interaction.reply({
           content: "❌ No tienes dinero en el banco.",
           ephemeral: true
         });
       }
 
-      const cantidad = u.banco;
+      const cantidad = usuario.banco;
 
-      u.banco = 0;
-      u.dinero += cantidad;
-
-      guardarDB(db);
-
-      await interaction.reply(
-        `💵 Retiraste todo: **${cantidad} monedas**.`
-      );
-    }
-  },
-
-  {
-    category: "economia",
-    data: new SlashCommandBuilder()
-      .setName("give")
-      .setDescription("Da monedas a un usuario")
-      .addUserOption(o =>
-        o.setName("usuario")
-          .setDescription("Usuario")
-          .setRequired(true)
-      )
-      .addIntegerOption(o =>
-        o.setName("cantidad")
-          .setDescription("Cantidad")
-          .setMinValue(1)
-          .setRequired(true)
-      )
-      .setDefaultMemberPermissions(
-        PermissionFlagsBits.Administrator
-      ),
-
-    async execute(interaction) {
-      const objetivo = interaction.options.getUser("usuario");
-      const cantidad = interaction.options.getInteger("cantidad");
-
-      const db = cargarDB();
-      const u = obtenerUsuario(db, objetivo.id);
-
-      u.dinero += cantidad;
+      usuario.banco = 0;
+      usuario.dinero += cantidad;
 
       guardarDB(db);
 
       await interaction.reply(
-        `💰 Se dieron **${cantidad} monedas** a ${objetivo}.`
+        `💵 Retiraste todo del banco: **$${cantidad.toLocaleString()}**.`
       );
     }
   },
 
+  // /richest
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("richest")
       .setDescription("Muestra los usuarios con más dinero"),
@@ -377,65 +432,198 @@ module.exports = [
     async execute(interaction) {
       const db = cargarDB();
 
-      const lista = Object.entries(db.economia || {})
-        .sort((a, b) =>
-          (b[1].dinero + b[1].banco) -
-          (a[1].dinero + a[1].banco)
-        )
+      const lista = Object.entries(db.economia)
+        .map(([id, datos]) => ({
+          id,
+          total:
+            (Number(datos.dinero) || 0) +
+            (Number(datos.banco) || 0)
+        }))
+        .sort((a, b) => b.total - a.total)
         .slice(0, 10);
 
-      if (!lista.length) {
-        return interaction.reply("💰 Todavía no hay usuarios.");
+      if (lista.length === 0) {
+        return interaction.reply(
+          "💰 Todavía no hay usuarios en el ranking."
+        );
       }
 
-      let texto = "";
+      const texto = [];
 
-      lista.forEach((item, index) => {
-        const total = item[1].dinero + item[1].banco;
+      for (let i = 0; i < lista.length; i++) {
+        const usuario =
+          await interaction.client.users
+            .fetch(lista[i].id)
+            .catch(() => null);
 
-        texto +=
-          `**${index + 1}.** <@${item[0]}> — **${total}** monedas\n`;
-      });
+        const nombre =
+          usuario?.username || `Usuario ${lista[i].id}`;
 
-      const embed = new EmbedBuilder()
-        .setColor(0xF59E0B)
-        .setTitle("🏆 Richest")
-        .setDescription(texto);
+        texto.push(
+          `**${i + 1}.** ${nombre} — 💰 $${lista[i].total.toLocaleString()}`
+        );
+      }
 
       await interaction.reply({
-        embeds: [embed]
+        embeds: [
+          new EmbedBuilder()
+            .setColor(0xF59E0B)
+            .setTitle("🏆 Ranking de riqueza")
+            .setDescription(texto.join("\n"))
+        ]
       });
     }
   },
 
+  // /coinflip
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("coinflip")
       .setDescription("Lanza una moneda"),
 
     async execute(interaction) {
       const resultado =
-        Math.random() < 0.5 ? "🪙 Cara" : "🪙 Cruz";
+        Math.random() < 0.5
+          ? "🪙 Cara"
+          : "🪙 Cruz";
 
       await interaction.reply(
-        `La moneda cayó en **${resultado}**.`
+        `🪙 La moneda cayó en **${resultado}**.`
       );
     }
   },
 
+  // /dice
   {
-    category: "economia",
     data: new SlashCommandBuilder()
       .setName("dice")
       .setDescription("Lanza un dado"),
 
     async execute(interaction) {
-      const numero =
+      const resultado =
         Math.floor(Math.random() * 6) + 1;
 
       await interaction.reply(
-        `🎲 Sacaste **${numero}**.`
+        `🎲 Sacaste **${resultado}**.`
+      );
+    }
+  },
+
+  // /give
+  {
+    data: new SlashCommandBuilder()
+      .setName("give")
+      .setDescription("Da dinero a un usuario")
+      .setDefaultMemberPermissions(
+        PermissionFlagsBits.Administrator
+      )
+      .addUserOption(option =>
+        option
+          .setName("usuario")
+          .setDescription("Usuario")
+          .setRequired(true)
+      )
+      .addIntegerOption(option =>
+        option
+          .setName("cantidad")
+          .setDescription("Cantidad")
+          .setMinValue(1)
+          .setRequired(true)
+      ),
+
+    async execute(interaction) {
+      if (!interaction.memberPermissions?.has(
+        PermissionFlagsBits.Administrator
+      )) {
+        return interaction.reply({
+          content: "❌ Necesitas permisos de administrador.",
+          ephemeral: true
+        });
+      }
+
+      const db = cargarDB();
+
+      const usuario =
+        interaction.options.getUser("usuario");
+
+      const cantidad =
+        interaction.options.getInteger("cantidad");
+
+      const cuenta =
+        obtenerUsuario(db, usuario.id);
+
+      cuenta.dinero += cantidad;
+
+      guardarDB(db);
+
+      await interaction.reply(
+        `💰 Se añadieron **$${cantidad.toLocaleString()}** a ${usuario}.`
+      );
+    }
+  },
+
+  // /bank
+  {
+    data: new SlashCommandBuilder()
+      .setName("bank")
+      .setDescription("Muestra cuánto dinero tienes en el banco"),
+
+    async execute(interaction) {
+      const db = cargarDB();
+      const usuario = obtenerUsuario(db, interaction.user.id);
+
+      await interaction.reply(
+        `🏦 Tienes **$${usuario.banco.toLocaleString()}** en el banco.`
+      );
+    }
+  },
+
+  // /dicebet
+  {
+    data: new SlashCommandBuilder()
+      .setName("dicebet")
+      .setDescription("Juega una apuesta de dados")
+      .addIntegerOption(option =>
+        option
+          .setName("cantidad")
+          .setDescription("Cantidad a apostar")
+          .setMinValue(1)
+          .setRequired(true)
+      ),
+
+    async execute(interaction) {
+      const db = cargarDB();
+      const usuario = obtenerUsuario(db, interaction.user.id);
+
+      const cantidad =
+        interaction.options.getInteger("cantidad");
+
+      if (usuario.dinero < cantidad) {
+        return interaction.reply({
+          content: "❌ No tienes suficiente dinero.",
+          ephemeral: true
+        });
+      }
+
+      const resultado =
+        Math.floor(Math.random() * 6) + 1;
+
+      if (resultado >= 4) {
+        usuario.dinero += cantidad;
+
+        guardarDB(db);
+
+        return interaction.reply(
+          `🎲 Sacaste **${resultado}** y ganaste **$${cantidad.toLocaleString()}**.`
+        );
+      }
+
+      usuario.dinero -= cantidad;
+
+      guardarDB(db);
+
+      await interaction.reply(
+        `🎲 Sacaste **${resultado}** y perdiste **$${cantidad.toLocaleString()}**.`
       );
     }
   }
