@@ -8,12 +8,16 @@ const {
 
 const comandos = [];
 
+const CATEGORIA = "generales";
+const COLOR = 0x5865F2;
+const ZONA_HORARIA = "America/Bogota";
+
 // ======================================================
 // AYUDA
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("ayuda")
@@ -21,18 +25,32 @@ comandos.push({
 
   async execute(interaction, client) {
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle("🤖 DARK FF V1")
       .setDescription(
         "Bienvenido al centro de ayuda.\n\n" +
         "Selecciona una categoría para ver sus comandos."
       )
       .addFields(
-        { name: "📜 Comandos", value: `${client.commands.size}`, inline: true },
-        { name: "🌐 Servidores", value: `${client.guilds.cache.size}`, inline: true },
-        { name: "🏓 Ping", value: `${client.ws.ping}ms`, inline: true }
+        {
+          name: "📜 Comandos",
+          value: `${client.commands.size}`,
+          inline: true
+        },
+        {
+          name: "🌐 Servidores",
+          value: `${client.guilds.cache.size}`,
+          inline: true
+        },
+        {
+          name: "🏓 Ping",
+          value: `${client.ws.ping}ms`,
+          inline: true
+        }
       )
-      .setFooter({ text: "DARK FF V1 • Centro de ayuda" });
+      .setFooter({
+        text: "DARK FF V1 • Centro de ayuda"
+      });
 
     const botones = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -72,7 +90,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("help")
@@ -80,14 +98,16 @@ comandos.push({
 
   async execute(interaction, client) {
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle("📚 Ayuda • DARK FF V1")
       .setDescription(
         `Tengo **${client.commands.size} comandos** disponibles.\n\n` +
         "Usa `/ayuda` para abrir el menú de categorías."
       );
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -96,7 +116,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("ping")
@@ -114,7 +134,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("latencia")
@@ -132,15 +152,20 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("botinfo")
     .setDescription("Muestra información del bot"),
 
   async execute(interaction, client) {
+    const usuarios = client.guilds.cache.reduce(
+      (total, guild) => total + (guild.memberCount || 0),
+      0
+    );
+
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle("🤖 DARK FF V1")
       .setDescription("Información del bot")
       .addFields(
@@ -156,10 +181,7 @@ comandos.push({
         },
         {
           name: "👥 Usuarios",
-          value: `${client.guilds.cache.reduce(
-            (a, g) => a + (g.memberCount || 0),
-            0
-          )}`,
+          value: `${usuarios}`,
           inline: true
         },
         {
@@ -169,7 +191,9 @@ comandos.push({
         }
       );
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -178,19 +202,23 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("servidor")
     .setDescription("Muestra información del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     const guild = interaction.guild;
+    const icon = guild.iconURL({ size: 1024 });
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle(`🌐 ${guild.name}`)
-      .setThumbnail(guild.iconURL({ size: 1024 }))
       .addFields(
         {
           name: "👥 Miembros",
@@ -214,7 +242,13 @@ comandos.push({
         }
       );
 
-    await interaction.reply({ embeds: [embed] });
+    if (icon) {
+      embed.setThumbnail(icon);
+    }
+
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -223,7 +257,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("usuario")
@@ -240,7 +274,7 @@ comandos.push({
       interaction.options.getUser("usuario") || interaction.user;
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle(`👤 ${user.username}`)
       .setThumbnail(user.displayAvatarURL({ size: 1024 }))
       .addFields(
@@ -261,7 +295,9 @@ comandos.push({
         }
       );
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -270,7 +306,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("avatar")
@@ -287,39 +323,48 @@ comandos.push({
       interaction.options.getUser("usuario") || interaction.user;
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle(`🖼️ Avatar de ${user.username}`)
       .setImage(user.displayAvatarURL({ size: 1024 }));
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
 // ======================================================
-// ICONO DEL SERVIDOR
+// ICONO
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("icono")
     .setDescription("Muestra el icono del servidor"),
 
   async execute(interaction) {
-    const guild = interaction.guild;
-    const icon = guild.iconURL({ size: 2048 });
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
+    const icon = interaction.guild.iconURL({ size: 2048 });
 
     if (!icon) {
-      return interaction.reply("❌ Este servidor no tiene icono.");
+      return interaction.reply(
+        "❌ Este servidor no tiene icono."
+      );
     }
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
-      .setTitle(`🖼️ Icono de ${guild.name}`)
+      .setColor(COLOR)
+      .setTitle(`🖼️ Icono de ${interaction.guild.name}`)
       .setImage(icon);
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -328,20 +373,33 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("servericon")
     .setDescription("Muestra el icono del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     const icon = interaction.guild.iconURL({ size: 2048 });
 
     if (!icon) {
-      return interaction.reply("❌ Este servidor no tiene icono.");
+      return interaction.reply(
+        "❌ Este servidor no tiene icono."
+      );
     }
 
-    await interaction.reply(icon);
+    const embed = new EmbedBuilder()
+      .setColor(COLOR)
+      .setTitle(`🖼️ Icono de ${interaction.guild.name}`)
+      .setImage(icon);
+
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -350,13 +408,17 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("miembros")
     .setDescription("Muestra la cantidad de miembros"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     await interaction.reply(
       `👥 **${interaction.guild.name}** tiene **${interaction.guild.memberCount} miembros**.`
     );
@@ -368,13 +430,17 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("membercount")
     .setDescription("Muestra el número de miembros"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     await interaction.reply(
       `👥 Miembros: **${interaction.guild.memberCount}**`
     );
@@ -386,13 +452,17 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("roles")
     .setDescription("Muestra los roles del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     const roles = interaction.guild.roles.cache
       .filter(role => role.id !== interaction.guild.id)
       .sort((a, b) => b.position - a.position)
@@ -414,17 +484,21 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("canales")
     .setDescription("Muestra los canales del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     const canales = interaction.guild.channels.cache;
 
     const texto = canales
-      .map(c => `• ${c.name}`)
+      .map(canal => `• ${canal.name}`)
       .slice(0, 50)
       .join("\n");
 
@@ -439,13 +513,17 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("boosts")
     .setDescription("Muestra los boosts del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     const guild = interaction.guild;
 
     await interaction.reply(
@@ -459,13 +537,17 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("boosters")
     .setDescription("Muestra los boosters del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     const boosters = interaction.guild.members.cache
       .filter(member => member.premiumSince)
       .map(member => `<@${member.id}>`);
@@ -481,13 +563,17 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("owner")
     .setDescription("Muestra el dueño del servidor"),
 
   async execute(interaction) {
+    if (!interaction.guild) {
+      return interaction.reply("❌ Este comando solo funciona en servidores.");
+    }
+
     await interaction.reply(
       `👑 El dueño de este servidor es <@${interaction.guild.ownerId}>.`
     );
@@ -499,16 +585,26 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("fecha")
-    .setDescription("Muestra la fecha actual"),
+    .setDescription("Muestra la fecha actual de Colombia"),
 
   async execute(interaction) {
-    const fecha = new Date().toLocaleDateString("es-CO");
+    const ahora = new Date();
 
-    await interaction.reply(`📅 Fecha actual: **${fecha}**`);
+    const fecha = ahora.toLocaleDateString("es-CO", {
+      timeZone: ZONA_HORARIA,
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    });
+
+    await interaction.reply(
+      `📅 **Fecha actual de Colombia**\n\n${fecha}`
+    );
   }
 });
 
@@ -517,16 +613,37 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("hora")
-    .setDescription("Muestra la hora actual"),
+    .setDescription("Muestra la hora actual de Colombia"),
 
   async execute(interaction) {
-    const hora = new Date().toLocaleTimeString("es-CO");
+    const ahora = new Date();
 
-    await interaction.reply(`🕐 Hora actual: **${hora}**`);
+    const hora = ahora.toLocaleTimeString("es-CO", {
+      timeZone: ZONA_HORARIA,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true
+    });
+
+    const fecha = ahora.toLocaleDateString("es-CO", {
+      timeZone: ZONA_HORARIA,
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    });
+
+    await interaction.reply(
+      `🕐 **Hora actual de Colombia**\n\n` +
+      `📅 ${fecha}\n` +
+      `⏰ **${hora}**\n\n` +
+      `🌎 Zona horaria: **America/Bogota (UTC-5)**`
+    );
   }
 });
 
@@ -535,14 +652,14 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("uptime")
     .setDescription("Muestra cuánto tiempo lleva online el bot"),
 
   async execute(interaction, client) {
-    const segundos = Math.floor(client.uptime / 1000);
+    const segundos = Math.floor((client.uptime || 0) / 1000);
 
     const dias = Math.floor(segundos / 86400);
     const horas = Math.floor((segundos % 86400) / 3600);
@@ -559,7 +676,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("estado")
@@ -577,7 +694,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("estadisticas")
@@ -590,7 +707,7 @@ comandos.push({
     );
 
     const embed = new EmbedBuilder()
-      .setColor(0x5865F2)
+      .setColor(COLOR)
       .setTitle("📊 Estadísticas • DARK FF V1")
       .addFields(
         {
@@ -615,7 +732,9 @@ comandos.push({
         }
       );
 
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply({
+      embeds: [embed]
+    });
   }
 });
 
@@ -624,14 +743,16 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("id")
     .setDescription("Muestra tu ID de Discord"),
 
   async execute(interaction) {
-    await interaction.reply(`🆔 Tu ID es: **${interaction.user.id}**`);
+    await interaction.reply(
+      `🆔 Tu ID es: **${interaction.user.id}**`
+    );
   }
 });
 
@@ -640,7 +761,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("mencion")
@@ -664,13 +785,19 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("invitar")
     .setDescription("Genera el enlace para invitar a DARK FF V1"),
 
   async execute(interaction, client) {
+    if (!client.user) {
+      return interaction.reply(
+        "❌ No se pudo obtener la información del bot."
+      );
+    }
+
     const link =
       `https://discord.com/oauth2/authorize?client_id=${client.user.id}` +
       `&permissions=8&scope=bot%20applications.commands`;
@@ -694,7 +821,7 @@ comandos.push({
 // ======================================================
 
 comandos.push({
-  category: "generales",
+  category: CATEGORIA,
 
   data: new SlashCommandBuilder()
     .setName("comandos")
