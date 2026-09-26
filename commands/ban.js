@@ -1,0 +1,65 @@
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder
+} = require("discord.js");
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName("ban")
+    .setDescription("Banea a un miembro del servidor")
+    .addUserOption(option =>
+      option.setName("usuario")
+        .setDescription("Usuario que quieres banear")
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName("razon")
+        .setDescription("Razón del baneo")
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+
+  async execute(interaction) {
+    const usuario = interaction.options.getUser("usuario");
+    const razon = interaction.options.getString("razon") || "Sin razón especificada";
+
+    const miembro = await interaction.guild.members.fetch(usuario.id).catch(() => null);
+
+    if (!miembro) {
+      return interaction.reply({
+        content: "❌ Ese usuario no está en el servidor.",
+        ephemeral: true
+      });
+    }
+
+    if (!miembro.bannable) {
+      return interaction.reply({
+        content: "❌ No puedo banear a ese usuario.",
+        ephemeral: true
+      });
+    }
+
+    if (miembro.id === interaction.user.id) {
+      return interaction.reply({
+        content: "❌ No puedes banearte a ti mismo.",
+        ephemeral: true
+      });
+    }
+
+    await miembro.ban({ reason: razon });
+
+    const embed = new EmbedBuilder()
+      .setTitle("🔨 Usuario baneado")
+      .setColor(0x5865f2)
+      .addFields(
+        { name: "👤 Usuario", value: `${usuario}`, inline: true },
+        { name: "📝 Razón", value: razon, inline: true },
+        { name: "🛡️ Moderador", value: `${interaction.user}`, inline: true }
+      )
+      .setTimestamp()
+      .setFooter({ text: "Axel XIT • Moderación" });
+
+    await interaction.reply({ embeds: [embed] });
+  }
+};
