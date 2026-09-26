@@ -13,265 +13,529 @@ const {
   Events
 } = require("discord.js");
 
+// ======================================================
+// AXEL XIT
+// Bot público de Discord
+// ======================================================
+
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
-const GUILD_ID = process.env.GUILD_ID;
 
 if (!TOKEN) {
-  console.error("❌ Falta DISCORD_TOKEN.");
+  console.error("❌ Falta DISCORD_TOKEN en el archivo .env");
   process.exit(1);
 }
 
 if (!CLIENT_ID) {
-  console.error("❌ Falta CLIENT_ID.");
+  console.error("❌ Falta CLIENT_ID en el archivo .env");
   process.exit(1);
 }
+
+// ======================================================
+// CLIENTE DE DISCORD
+// ======================================================
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildVoiceStates
   ]
 });
 
+// ======================================================
+// COLECCIONES
+// ======================================================
+
 client.commands = new Collection();
+client.commandFiles = new Map();
+client.eventModules = [];
 
-const commands = [];
+// ======================================================
+// CARGAR COMANDOS AUTOMÁTICAMENTE
+// ======================================================
 
-// ========================================
-// BUSCAR COMANDOS EN TODAS LAS SUBCARPETAS
-// ========================================
+const commandsPath = path.join(__dirname, "commands");
 
-function buscarArchivos(dir) {
-  let archivos = [];
-
-  if (!fs.existsSync(dir)) {
-    return archivos;
-  }
-
-  for (const archivo of fs.readdirSync(dir)) {
-    const ruta = path.join(dir, archivo);
-    const stat = fs.statSync(ruta);
-
-    if (stat.isDirectory()) {
-      archivos = archivos.concat(buscarArchivos(ruta));
-    } else if (archivo.endsWith(".js")) {
-      archivos.push(ruta);
-    }
-  }
-
-  return archivos;
+if (!fs.existsSync(commandsPath)) {
+  console.error("❌ No existe la carpeta commands/");
+  process.exit(1);
 }
 
-// ========================================
-// CARGAR COMANDOS
-// ========================================
+const commandFiles = fs
+  .readdirSync(commandsPath)
+  .filter(file => file.endsWith(".js"));
 
-const comandosPath = path.join(__dirname, "comandos");
+for (const file of commandFiles) {
+  const filePath = path.join(commandsPath, file);
 
-if (!fs.existsSync(comandosPath)) {
-  fs.mkdirSync(comandosPath, { recursive: true });
-}
-
-const archivos = buscarArchivos(comandosPath);
-
-console.log("========================================");
-console.log("📦 CARGANDO COMANDOS");
-console.log("========================================");
-
-for (const archivo of archivos) {
   try {
-    delete require.cache[require.resolve(archivo)];
+    delete require.cache[require.resolve(filePath)];
 
-    const comando = require(archivo);
+    const command = require(filePath);
 
-    const lista = Array.isArray(comando)
-      ? comando
-      : [comando];
-
-    for (const cmd of lista) {
-      if (!cmd || !cmd.data || !cmd.execute) {
-        console.error(
-          `❌ Comando inválido: ${archivo}`
-        );
-        continue;
-      }
-
-      const nombre = cmd.data.name;
-
-      if (client.commands.has(nombre)) {
-        console.error(
-          `❌ Comando duplicado: /${nombre}`
-        );
-        continue;
-      }
-
-      client.commands.set(nombre, cmd);
-      commands.push(cmd.data.toJSON());
-
-      console.log(`✅ /${nombre}`);
+    if (!command.data || !command.execute) {
+      console.warn(
+        `⚠️ ${file} no tiene data o execute. Se omitirá.`
+      );
+      continue;
     }
 
+    const commandName = command.data.name;
+
+    if (client.commands.has(commandName)) {
+      console.warn(
+        `⚠️ Comando duplicado detectado: /${commandName}`
+      );
+      console.warn(`   Archivo ignorado: ${file}`);
+      continue;
+    }
+
+    client.commands.set(commandName, command);
+    client.commandFiles.set(commandName, file);
+
+    // Guardamos módulos que tienen eventos especiales
+    if (
+      typeof command.messageCreate === "function" ||
+      typeof command.guildMemberAdd === "function" ||
+      typeof command.guildMemberRemove === "function" ||
+      typeof command.handleReaction === "function"
+    ) {
+      client.eventModules.push(command);
+    }
+
+    console.log(`✅ Comando cargado: /${commandName}`);
   } catch (error) {
-    console.error(
-      `❌ Error cargando ${archivo}`
-    );
+    console.error(`❌ Error cargando ${file}:`);
     console.error(error);
   }
 }
 
-console.log("========================================");
-console.log(`📊 Comandos cargados: ${commands.length}`);
-console.log("========================================");
+console.log(
+  `\n📦 Total de comandos cargados: ${client.commands.size}\n`
+);
 
-// ========================================
-// REGISTRO DE COMANDOS
-// ========================================
-
-const rest = new REST({
-  version: "10"
-}).setToken(TOKEN);
+// ======================================================
+// REGISTRAR SLASH COMMANDS
+// ======================================================
 
 async function registrarComandos() {
+  const rest = new REST({ version: "10" }).setToken(TOKEN);
+
+  const commands = [];
+
+  for (const command of client.commands.values()) {
+    commands.push(command.data.toJSON());
+  }
+
   try {
-    console.log("🔄 Registrando comandos...");
+    console.log("🔄 Registrando comandos de Axel XIT...");
 
-    if (GUILD_ID) {
-      await rest.put(
-        Routes.applicationGuildCommands(
-          CLIENT_ID,
-          GUILD_ID
-        ),
-        {
-          body: commands
-        }
-      );
+    await rest.put(
+      Routes.applicationCommands(CLIENT_ID),
+      {
+        body: commands
+      }
+    );
 
-      console.log(
-        `✅ ${commands.length} comandos registrados en el servidor.`
-      );
-
-    } else {
-      await rest.put(
-        Routes.applicationCommands(CLIENT_ID),
-        {
-          body: commands
-        }
-      );
-
-      console.log(
-        `✅ ${commands.length} comandos registrados globalmente.`
-      );
-    }
-
+    console.log(
+      `✅ ${commands.length} comandos registrados correctamente.`
+    );
   } catch (error) {
     console.error("❌ Error registrando comandos:");
     console.error(error);
   }
 }
 
-// ========================================
+// ======================================================
 // BOT LISTO
-// ========================================
+// ======================================================
 
-client.once(Events.ClientReady, async () => {
-  console.log("========================================");
-  console.log("🤖 DARK FF V1 ONLINE");
-  console.log(`👤 ${client.user.tag}`);
-  console.log(`🆔 ${client.user.id}`);
-  console.log("========================================");
+client.once(Events.ClientReady, async readyClient => {
+  console.log("");
+  console.log("======================================");
+  console.log("        AXEL XIT CONECTADO");
+  console.log("======================================");
+  console.log(`🤖 Bot: ${readyClient.user.tag}`);
+  console.log(`🆔 ID: ${readyClient.user.id}`);
+  console.log(`🌐 Servidores: ${readyClient.guilds.cache.size}`);
+  console.log(`📦 Comandos: ${client.commands.size}`);
+  console.log("======================================");
+  console.log("");
+
+  readyClient.user.setPresence({
+    activities: [
+      {
+        name: `${client.commands.size} comandos | /help`,
+        type: 0
+      }
+    ],
+    status: "online"
+  });
 
   await registrarComandos();
 });
 
-// ========================================
-// EJECUTAR COMANDOS
-// ========================================
+// ======================================================
+// INTERACCIONES
+// ======================================================
 
 client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) {
-    return;
-  }
 
-  console.log(
-    `📥 /${interaction.commandName}`
-  );
+  // ----------------------------------------------------
+  // SLASH COMMANDS
+  // ----------------------------------------------------
 
-  const comando = client.commands.get(
-    interaction.commandName
-  );
-
-  if (!comando) {
-    console.error(
-      `❌ No se encontró /${interaction.commandName}`
+  if (interaction.isChatInputCommand()) {
+    const command = client.commands.get(
+      interaction.commandName
     );
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: "❌ Ese comando no está cargado.",
-        ephemeral: true
-      }).catch(() => {});
+    if (!command) {
+      console.warn(
+        `⚠️ Comando no encontrado: /${interaction.commandName}`
+      );
+
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: "❌ Ese comando ya no está disponible.",
+          ephemeral: true
+        }).catch(() => {});
+      }
+
+      return;
     }
 
-    return;
+    try {
+      await command.execute(interaction);
+    } catch (error) {
+      console.error(
+        `❌ Error ejecutando /${interaction.commandName}:`
+      );
+
+      console.error(error);
+
+      const mensaje =
+        "❌ Ocurrió un error al ejecutar este comando.";
+
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply({
+          content: mensaje
+        }).catch(() => {});
+      } else {
+        await interaction.reply({
+          content: mensaje,
+          ephemeral: true
+        }).catch(() => {});
+      }
+    }
   }
 
-  try {
-    await comando.execute(interaction);
+  // ----------------------------------------------------
+  // BOTONES
+  // ----------------------------------------------------
 
+  if (interaction.isButton()) {
     console.log(
-      `✅ /${interaction.commandName} ejecutado`
+      `🔘 Botón utilizado: ${interaction.customId}`
     );
 
-  } catch (error) {
-    console.error(
-      `❌ Error en /${interaction.commandName}:`
+    // Los sistemas que necesiten botones
+    // podrán conectarse aquí posteriormente.
+  }
+
+  // ----------------------------------------------------
+  // MENÚS SELECT
+  // ----------------------------------------------------
+
+  if (interaction.isStringSelectMenu()) {
+    console.log(
+      `📋 Menú utilizado: ${interaction.customId}`
     );
 
-    console.error(error);
-
-    const mensaje = {
-      content: "❌ Ocurrió un error al ejecutar el comando.",
-      ephemeral: true
-    };
-
-    try {
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(mensaje);
-      } else {
-        await interaction.reply(mensaje);
-      }
-    } catch {}
+    // Los sistemas que necesiten menús
+    // podrán conectarse aquí posteriormente.
   }
 });
 
-// ========================================
-// SERVIDOR WEB PARA RAILWAY / RENDER
-// ========================================
+// ======================================================
+// MENSAJES
+// ======================================================
+
+client.on(Events.MessageCreate, async message => {
+
+  if (message.author.bot) return;
+
+  for (const module of client.eventModules) {
+
+    if (typeof module.messageCreate !== "function") {
+      continue;
+    }
+
+    try {
+      await module.messageCreate(message);
+    } catch (error) {
+      console.error(
+        "❌ Error en un módulo messageCreate:"
+      );
+
+      console.error(error);
+    }
+  }
+});
+
+// ======================================================
+// NUEVO MIEMBRO
+// ======================================================
+
+client.on(Events.GuildMemberAdd, async member => {
+
+  for (const module of client.eventModules) {
+
+    if (typeof module.guildMemberAdd !== "function") {
+      continue;
+    }
+
+    try {
+      await module.guildMemberAdd(member);
+    } catch (error) {
+      console.error(
+        "❌ Error en guildMemberAdd:"
+      );
+
+      console.error(error);
+    }
+  }
+});
+
+// ======================================================
+// MIEMBRO SALE
+// ======================================================
+
+client.on(Events.GuildMemberRemove, async member => {
+
+  for (const module of client.eventModules) {
+
+    if (typeof module.guildMemberRemove !== "function") {
+      continue;
+    }
+
+    try {
+      await module.guildMemberRemove(member);
+    } catch (error) {
+      console.error(
+        "❌ Error en guildMemberRemove:"
+      );
+
+      console.error(error);
+    }
+  }
+});
+
+// ======================================================
+// REACCIONES
+// ======================================================
+
+client.on(
+  Events.MessageReactionAdd,
+  async (reaction, user) => {
+
+    if (user.bot) return;
+
+    // Soporte para reacciones de Giveaways
+    for (const module of client.eventModules) {
+
+      if (typeof module.handleReaction !== "function") {
+        continue;
+      }
+
+      try {
+        await module.handleReaction(
+          reaction,
+          user,
+          client
+        );
+      } catch (error) {
+        console.error(
+          "❌ Error procesando reacción:"
+        );
+
+        console.error(error);
+      }
+    }
+  }
+);
+
+// ======================================================
+// REACCIÓN QUITADA
+// ======================================================
+
+client.on(
+  Events.MessageReactionRemove,
+  async (reaction, user) => {
+
+    if (user.bot) return;
+
+    // Preparado para futuros sistemas.
+  }
+);
+
+// ======================================================
+// ERRORES DEL CLIENTE
+// ======================================================
+
+client.on(Events.Error, error => {
+  console.error("❌ Discord Client Error:");
+  console.error(error);
+});
+
+// ======================================================
+// WARNINGS
+// ======================================================
+
+client.on(Events.Warn, warning => {
+  console.warn("⚠️ Discord Warning:");
+  console.warn(warning);
+});
+
+// ======================================================
+// DEBUG
+// ======================================================
+
+client.on(Events.Debug, info => {
+  // Evitamos llenar demasiado la consola.
+  if (
+    info.includes("Heartbeat") ||
+    info.includes("heartbeat")
+  ) {
+    return;
+  }
+
+  console.log(`🔧 Debug: ${info}`);
+});
+
+// ======================================================
+// SERVIDOR HTTP PARA RAILWAY
+// ======================================================
 
 const PORT = process.env.PORT || 3000;
 
-http.createServer((req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "text/plain; charset=utf-8"
+const server = http.createServer((req, res) => {
+
+  if (req.url === "/") {
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8"
+    });
+
+    res.end(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Axel XIT</title>
+      </head>
+
+      <body style="
+        margin:0;
+        background:#111;
+        color:white;
+        font-family:Arial;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        height:100vh;
+        text-align:center;
+      ">
+
+        <div>
+          <h1>🤖 Axel XIT</h1>
+          <p>Bot online correctamente.</p>
+          <p>⚡ Sistema funcionando</p>
+        </div>
+
+      </body>
+      </html>
+    `);
+
+    return;
+  }
+
+  if (req.url === "/health") {
+    res.writeHead(200, {
+      "Content-Type": "application/json"
+    });
+
+    res.end(
+      JSON.stringify({
+        status: "online",
+        bot: "Axel XIT",
+        commands: client.commands.size,
+        guilds: client.guilds.cache.size,
+        uptime: process.uptime()
+      })
+    );
+
+    return;
+  }
+
+  res.writeHead(404, {
+    "Content-Type": "application/json"
   });
 
-  res.end("DARK FF V1 está funcionando.");
-}).listen(PORT, () => {
-  console.log(`🌐 Puerto ${PORT} activo`);
+  res.end(
+    JSON.stringify({
+      error: "Not Found"
+    })
+  );
 });
 
-// ========================================
-// LOGIN
-// ========================================
+server.listen(PORT, () => {
+  console.log(`🌐 Servidor web activo en el puerto ${PORT}`);
+});
 
-client.login(TOKEN)
-  .then(() => {
-    console.log("🔐 Conectando con Discord...");
-  })
-  .catch(error => {
-    console.error("❌ Error al iniciar sesión:");
-    console.error(error);
+// ======================================================
+// MANEJO DE CIERRE
+// ======================================================
+
+async function apagar() {
+  console.log("\n🛑 Apagando Axel XIT...");
+
+  try {
+    await client.destroy();
+  } catch (error) {
+    console.error("Error cerrando Discord:", error);
+  }
+
+  server.close(() => {
+    console.log("🌐 Servidor HTTP cerrado.");
+    process.exit(0);
   });
+}
+
+process.on("SIGINT", apagar);
+process.on("SIGTERM", apagar);
+
+// ======================================================
+// ERRORES GLOBALES
+// ======================================================
+
+process.on("unhandledRejection", error => {
+  console.error("❌ Unhandled Rejection:");
+  console.error(error);
+});
+
+process.on("uncaughtException", error => {
+  console.error("❌ Uncaught Exception:");
+  console.error(error);
+});
+
+// ======================================================
+// INICIAR BOT
+// ======================================================
+
+console.log("🚀 Iniciando Axel XIT...");
+
+client.login(TOKEN);
