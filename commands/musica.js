@@ -1,64 +1,500 @@
 const {
   SlashCommandBuilder,
   EmbedBuilder,
-  PermissionFlagsBits,
-  ChannelType
+  PermissionFlagsBits
 } = require("discord.js");
 
-const commands = [];
+const {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  VoiceConnectionStatus,
+  NoSubscriberBehavior,
+  StreamType
+} = require("@discordjs/voice");
+
+const prism = require("prism-media");
+const ffmpegPath = require("ffmpeg-static");
+
+const { Readable } = require("stream");
+
+const comandos = [];
 
 /* =========================================================
-   SISTEMA DE COLAS
+   SISTEMA DE MÚSICA
 ========================================================= */
 
-const colas = new Map();
+const servidores = new Map();
 
-function obtenerCola(guildId) {
-  if (!colas.has(guildId)) {
-    colas.set(guildId, {
-      canciones: [],
-      actual: null,
-      volumen: 100,
-      loop: false,
-      conectado: false
+/*
+Estructura:
+
+servidores.set(guildId, {
+  connection,
+  player,
+  queue,
+  current,
+  volume,
+  loop,
+  voiceChannelId
+});
+*/
+
+function obtenerServidor(guildId) {
+  if (!servidores.has(guildId)) {
+    const player = createAudioPlayer({
+      behaviors: {
+        noSubscriber: NoSubscriberBehavior.Play
+      }
     });
+
+    const data = {
+      connection: null,
+      player,
+      queue: [],
+      current: null,
+      volume: 100,
+      loop: false,
+      voiceChannelId: null
+    };
+
+    /*
+     * Cuando termina una canción,
+     * reproduce la siguiente.
+     */
+
+    player.on(
+      AudioPlayerStatus.Idle,
+      () => {
+        reproducirSiguiente(guildId).catch(
+          console.error
+        );
+      }
+    );
+
+    /*
+     * Errores del reproductor
+     */
+
+    player.on(
+      "error",
+      error => {
+        console.error(
+          `[MÚSICA] Error de audio en ${guildId}:`,
+          error
+        );
+
+        reproducirSiguiente(guildId).catch(
+          console.error
+        );
+      }
+    );
+
+    servidores.set(guildId, data);
   }
 
-  return colas.get(guildId);
+  return servidores.get(guildId);
+}
+
+/* =========================================================
+   CONECTAR A VOZ
+========================================================= */
+
+async function conectarVoz(interaction) {
+  if (!interaction.guild) {
+    throw new Error(
+      "Este comando solo funciona en un servidor."
+    );
+  }
+
+  const member = interaction.member;
+
+  const canalVoz =
+    member?.voice?.channel;
+
+  if (!canalVoz) {
+    throw new Error(
+      "Debes estar en un canal de voz."
+    );
+  }
+
+  const guildId =
+    interaction.guild.id;
+
+  const data =
+    obtenerServidor(guildId);
+
+  /*
+   * Si ya estamos conectados al mismo canal,
+   * reutilizamos la conexión.
+   */
+
+  if (
+    data.connection &&
+    data.voiceChannelId === canalVoz.id
+  ) {
+    return data;
+  }
+
+  /*
+   * Si estaba conectado a otro canal,
+   * destruye la conexión anterior.
+   */
+
+  if (data.connection) {
+    try {
+      data.connection.destroy();
+    } catch {}
+  }
+
+  const connection =
+    joinVoiceChannel({
+      channelId: canalVoz.id,
+      guildId: interaction.guild.id,
+      adapterCreator:
+        interaction.guild.voiceAdapterCreator,
+      selfDeaf: true,
+      selfMute: false
+    });
+
+  data.connection = connection;
+  data.voiceChannelId = canalVoz.id;
+
+  connection.subscribe(
+    data.player
+  );
+
+  /*
+   * Intentar recuperar conexión.
+   */
+
+  connection.on(
+    VoiceConnectionStatus.Disconnected,
+    async () => {
+      try {
+        await Promise.race([
+          new Promise(resolve =>
+            setTimeout(resolve, 5000)
+          ),
+          new Promise((resolve, reject) => {
+            connection.once(
+              VoiceConnectionStatus.Ready,
+              resolve
+            );
+
+            connection.once(
+              VoiceConnectionStatus.Destroyed,
+              reject
+            );
+          })
+        ]);
+      } catch {
+        connection.destroy();
+      }
+    }
+  );
+
+  return data;
+}
+
+/* =========================================================
+   VALIDAR URL
+========================================================= */
+
+function validarUrl(input) {
+  try {
+    const url = new URL(input);
+
+    if (
+      url.protocol !== "http:" &&
+      url.protocol !== "https:"
+    ) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* =========================================================
+   CREAR STREAM DE AUDIO
+========================================================= */
+
+async function crearStream(url) {
+  const response =
+    await fetch(url, {
+      headers: {
+        "User-Agent":
+          "DARK-FF-V1-Music-Bot/1.0"
+      },
+      redirect: "follow"
+    });
+
+  if (!response.ok) {
+    throw new Error(
+      `HTTP ${response.status}`
+    );
+  }
+
+  if (!response.body) {
+    throw new Error(
+      "La página no devolvió audio."
+    );
+  }
+
+  /*
+   * Convertir Web ReadableStream
+   * a Node Readable.
+   */
+
+  const nodeStream =
+    Readable.fromWeb(
+      response.body
+    );
+
+  /*
+   * FFmpeg convierte el audio a
+   * PCM estéreo compatible con Discord.
+   */
+
+  const ffmpeg =
+    new prism.FFmpeg({
+      args: [
+        "-analyzeduration",
+        "0",
+        "-loglevel",
+        "0",
+        "-f",
+        "s16le",
+        "-ar",
+        "48000",
+        "-ac",
+        "2"
+      ],
+      shell: ffmpegPath
+    });
+
+  const stream =
+    nodeStream.pipe(ffmpeg);
+
+  return stream;
+}
+
+/* =========================================================
+   REPRODUCIR CANCIÓN
+========================================================= */
+
+async function reproducir(guildId, item) {
+  const data =
+    obtenerServidor(guildId);
+
+  if (!data.connection) {
+    throw new Error(
+      "El bot no está conectado a voz."
+    );
+  }
+
+  const stream =
+    await crearStream(item.url);
+
+  const resource =
+    createAudioResource(
+      stream,
+      {
+        inputType:
+          StreamType.Raw,
+        inlineVolume: true
+      }
+    );
+
+  resource.volume?.setVolume(
+    Math.max(
+      0,
+      Math.min(
+        1,
+        data.volume / 100
+      )
+    )
+  );
+
+  data.current = {
+    ...item,
+    resource,
+    startedAt: Date.now()
+  };
+
+  data.player.play(
+    resource
+  );
+}
+
+/* =========================================================
+   SIGUIENTE CANCIÓN
+========================================================= */
+
+async function reproducirSiguiente(guildId) {
+  const data =
+    servidores.get(guildId);
+
+  if (!data) return;
+
+  /*
+   * Si loop está activado,
+   * repetimos la canción actual.
+   */
+
+  if (
+    data.loop &&
+    data.current
+  ) {
+    try {
+      await reproducir(
+        guildId,
+        {
+          name:
+            data.current.name,
+          url:
+            data.current.url,
+          requestedBy:
+            data.current.requestedBy
+        }
+      );
+
+      return;
+    } catch (error) {
+      console.error(
+        "[MÚSICA] Error en loop:",
+        error
+      );
+    }
+  }
+
+  if (!data.queue.length) {
+    data.current = null;
+    return;
+  }
+
+  const siguiente =
+    data.queue.shift();
+
+  try {
+    await reproducir(
+      guildId,
+      siguiente
+    );
+  } catch (error) {
+    console.error(
+      "[MÚSICA] Error reproduciendo:",
+      error
+    );
+
+    /*
+     * Intentar automáticamente
+     * con la siguiente canción.
+     */
+
+    setTimeout(() => {
+      reproducirSiguiente(
+        guildId
+      ).catch(console.error);
+    }, 1000);
+  }
 }
 
 /* =========================================================
    /play
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("play")
-    .setDescription("Añade una canción a la cola")
+    .setDescription(
+      "Reproduce una URL directa de audio"
+    )
     .addStringOption(option =>
       option
-        .setName("cancion")
-        .setDescription("Nombre o URL de la canción")
+        .setName("url")
+        .setDescription(
+          "URL directa de audio o stream"
+        )
         .setRequired(true)
     ),
 
   async execute(interaction) {
-    const cancion =
-      interaction.options.getString("cancion");
+    const url =
+      interaction.options.getString(
+        "url"
+      );
 
-    const cola = obtenerCola(interaction.guildId);
+    if (!validarUrl(url)) {
+      return interaction.reply({
+        content:
+          "❌ Introduce una URL HTTP o HTTPS válida.",
+        ephemeral: true
+      });
+    }
 
-    cola.canciones.push({
-      nombre: cancion,
-      usuario: interaction.user.id,
-      agregada: Date.now()
-    });
+    await interaction.deferReply();
 
-    await interaction.reply(
-      `🎵 **Añadido a la cola:**\n\`${cancion}\`\n\n` +
-      `📋 Posición: **${cola.canciones.length}**\n\n` +
-      `⚠️ El reproductor de audio todavía necesita conectarse a una fuente de música.`
-    );
+    try {
+      const data =
+        await conectarVoz(
+          interaction
+        );
+
+      const item = {
+        name:
+          url.length > 80
+            ? `${url.slice(0, 77)}...`
+            : url,
+        url,
+        requestedBy:
+          interaction.user.id
+      };
+
+      /*
+       * Si no hay nada reproduciéndose,
+       * empieza inmediatamente.
+       */
+
+      if (
+        !data.current &&
+        data.player.state.status ===
+          AudioPlayerStatus.Idle
+      ) {
+        await reproducir(
+          interaction.guild.id,
+          item
+        );
+
+        return interaction.editReply(
+          `▶️ Reproduciendo:\n${url}`
+        );
+      }
+
+      /*
+       * Si ya hay música,
+       * entra en la cola.
+       */
+
+      data.queue.push(item);
+
+      await interaction.editReply(
+        `✅ Añadido a la cola en la posición **${data.queue.length}**.\n${url}`
+      );
+    } catch (error) {
+      console.error(
+        "[PLAY]",
+        error
+      );
+
+      await interaction.editReply(
+        `❌ No pude reproducir ese audio.\n\n**Motivo:** ${error.message}`
+      );
+    }
   }
 });
 
@@ -66,26 +502,36 @@ commands.push({
    /pause
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("pause")
-    .setDescription("Pausa la reproducción"),
+    .setDescription(
+      "Pausa la música"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (!cola.actual) {
-      return interaction.reply({
-        content:
-          "❌ No hay ninguna canción reproduciéndose.",
-        ephemeral: true
-      });
+    if (!data) {
+      return interaction.reply(
+        "❌ No hay música activa."
+      );
     }
 
-    cola.pausado = true;
+    const pausado =
+      data.player.pause();
+
+    if (!pausado) {
+      return interaction.reply(
+        "❌ No hay una canción reproduciéndose."
+      );
+    }
 
     await interaction.reply(
-      `⏸️ Reproducción pausada: **${cola.actual.nombre}**`
+      "⏸️ Música pausada."
     );
   }
 });
@@ -94,26 +540,36 @@ commands.push({
    /resume
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("resume")
-    .setDescription("Reanuda la reproducción"),
+    .setDescription(
+      "Continúa la música"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (!cola.actual) {
-      return interaction.reply({
-        content:
-          "❌ No hay ninguna canción pausada.",
-        ephemeral: true
-      });
+    if (!data) {
+      return interaction.reply(
+        "❌ No hay música pausada."
+      );
     }
 
-    cola.pausado = false;
+    const reanudado =
+      data.player.unpause();
+
+    if (!reanudado) {
+      return interaction.reply(
+        "❌ No hay una canción pausada."
+      );
+    }
 
     await interaction.reply(
-      `▶️ Reproducción reanudada: **${cola.actual.nombre}**`
+      "▶️ Música reanudada."
     );
   }
 });
@@ -122,36 +578,31 @@ commands.push({
    /skip
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("skip")
-    .setDescription("Salta la canción actual"),
+    .setDescription(
+      "Salta la canción actual"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (!cola.actual) {
-      return interaction.reply({
-        content:
-          "❌ No hay ninguna canción reproduciéndose.",
-        ephemeral: true
-      });
+    if (!data?.current) {
+      return interaction.reply(
+        "❌ No hay ninguna canción reproduciéndose."
+      );
     }
 
-    const anterior = cola.actual.nombre;
-
-    cola.actual =
-      cola.canciones.shift() || null;
-
-    cola.pausado = false;
+    data.player.stop(
+      true
+    );
 
     await interaction.reply(
-      `⏭️ Canción saltada: **${anterior}**\n` +
-      (
-        cola.actual
-          ? `🎵 Siguiente: **${cola.actual.nombre}**`
-          : "📭 La cola está vacía."
-      )
+      "⏭️ Canción saltada."
     );
   }
 });
@@ -160,17 +611,32 @@ commands.push({
    /stop
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("stop")
-    .setDescription("Detiene la música y limpia la cola"),
+    .setDescription(
+      "Detiene la música y limpia la cola"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    cola.canciones = [];
-    cola.actual = null;
-    cola.pausado = false;
+    if (!data) {
+      return interaction.reply(
+        "❌ No hay música activa."
+      );
+    }
+
+    data.queue = [];
+    data.current = null;
+    data.loop = false;
+
+    data.player.stop(
+      true
+    );
 
     await interaction.reply(
       "⏹️ Música detenida y cola limpiada."
@@ -182,49 +648,60 @@ commands.push({
    /queue
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("queue")
-    .setDescription("Muestra la cola de música"),
+    .setDescription(
+      "Muestra la cola de música"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (!cola.actual && !cola.canciones.length) {
-      return interaction.reply({
-        content:
-          "📭 La cola está vacía.",
-        ephemeral: true
-      });
+    if (!data) {
+      return interaction.reply(
+        "❌ La cola está vacía."
+      );
     }
 
-    let texto = "";
+    const lista = [];
 
-    if (cola.actual) {
-      texto +=
-        `🎵 **Reproduciendo:** ${cola.actual.nombre}\n\n`;
+    if (data.current) {
+      lista.push(
+        `▶️ **Ahora:** ${data.current.name}`
+      );
     }
 
-    if (cola.canciones.length) {
-      texto += cola.canciones
-        .slice(0, 20)
-        .map(
-          (cancion, index) =>
-            `**${index + 1}.** ${cancion.nombre}`
+    if (data.queue.length) {
+      data.queue
+        .slice(0, 15)
+        .forEach(
+          (item, index) => {
+            lista.push(
+              `**${index + 1}.** ${item.name}`
+            );
+          }
+        );
+    }
+
+    if (!lista.length) {
+      return interaction.reply(
+        "📭 La cola está vacía."
+      );
+    }
+
+    const embed =
+      new EmbedBuilder()
+        .setTitle(
+          "🎵 Cola de DARK FF V1"
         )
-        .join("\n");
-    }
-
-    if (texto.length > 3900) {
-      texto =
-        texto.slice(0, 3850) +
-        "\n...";
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle("🎵 Cola de música")
-      .setDescription(texto)
-      .setColor(0x5865f2);
+        .setDescription(
+          lista.join("\n")
+        )
+        .setColor("Blue");
 
     await interaction.reply({
       embeds: [embed]
@@ -236,30 +713,39 @@ commands.push({
    /nowplaying
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("nowplaying")
-    .setDescription("Muestra la canción actual"),
+    .setDescription(
+      "Muestra la canción actual"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (!cola.actual) {
-      return interaction.reply({
-        content:
-          "📭 No hay ninguna canción reproduciéndose.",
-        ephemeral: true
-      });
+    if (!data?.current) {
+      return interaction.reply(
+        "❌ No hay música reproduciéndose."
+      );
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle("🎵 Reproduciendo ahora")
-      .setDescription(
-        `**${cola.actual.nombre}**\n\n` +
-        `🔊 Volumen: **${cola.volumen}%**\n` +
-        `🔁 Loop: **${cola.loop ? "Activado" : "Desactivado"}**`
-      )
-      .setColor(0x5865f2);
+    const embed =
+      new EmbedBuilder()
+        .setTitle(
+          "🎵 Reproduciendo ahora"
+        )
+        .setDescription(
+          `[Abrir audio](${data.current.url})`
+        )
+        .addFields({
+          name: "🔊 Volumen",
+          value: `${data.volume}%`,
+          inline: true
+        })
+        .setColor("Blue");
 
     await interaction.reply({
       embeds: [embed]
@@ -271,14 +757,18 @@ commands.push({
    /volume
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("volume")
-    .setDescription("Cambia el volumen")
+    .setDescription(
+      "Cambia el volumen"
+    )
     .addIntegerOption(option =>
       option
         .setName("nivel")
-        .setDescription("Volumen de 0 a 100")
+        .setDescription(
+          "Volumen entre 0 y 100"
+        )
         .setMinValue(0)
         .setMaxValue(100)
         .setRequired(true)
@@ -286,11 +776,31 @@ commands.push({
 
   async execute(interaction) {
     const nivel =
-      interaction.options.getInteger("nivel");
+      interaction.options.getInteger(
+        "nivel"
+      );
 
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    cola.volumen = nivel;
+    if (!data) {
+      return interaction.reply(
+        "❌ No hay música activa."
+      );
+    }
+
+    data.volume = nivel;
+
+    const resource =
+      data.current?.resource;
+
+    if (resource?.volume) {
+      resource.volume.setVolume(
+        nivel / 100
+      );
+    }
 
     await interaction.reply(
       `🔊 Volumen establecido en **${nivel}%**.`
@@ -302,18 +812,32 @@ commands.push({
    /loop
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("loop")
-    .setDescription("Activa o desactiva el loop"),
+    .setDescription(
+      "Activa o desactiva el loop"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    cola.loop = !cola.loop;
+    if (!data) {
+      return interaction.reply(
+        "❌ No hay música activa."
+      );
+    }
+
+    data.loop =
+      !data.loop;
 
     await interaction.reply(
-      `🔁 Loop: **${cola.loop ? "Activado 🟢" : "Desactivado 🔴"}**`
+      data.loop
+        ? "🔁 Loop activado."
+        : "➡️ Loop desactivado."
     );
   }
 });
@@ -322,41 +846,49 @@ commands.push({
    /shuffle
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("shuffle")
-    .setDescription("Mezcla la cola"),
+    .setDescription(
+      "Mezcla la cola"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (cola.canciones.length < 2) {
-      return interaction.reply({
-        content:
-          "❌ Necesitas al menos 2 canciones en la cola.",
-        ephemeral: true
-      });
+    if (
+      !data ||
+      data.queue.length < 2
+    ) {
+      return interaction.reply(
+        "❌ Necesitas al menos 2 canciones en la cola."
+      );
     }
 
     for (
-      let i = cola.canciones.length - 1;
+      let i = data.queue.length - 1;
       i > 0;
       i--
     ) {
       const j =
-        Math.floor(Math.random() * (i + 1));
+        Math.floor(
+          Math.random() * (i + 1)
+        );
 
       [
-        cola.canciones[i],
-        cola.canciones[j]
+        data.queue[i],
+        data.queue[j]
       ] = [
-        cola.canciones[j],
-        cola.canciones[i]
+        data.queue[j],
+        data.queue[i]
       ];
     }
 
     await interaction.reply(
-      "🔀 La cola fue mezclada correctamente."
+      "🔀 Cola mezclada."
     );
   }
 });
@@ -365,42 +897,59 @@ commands.push({
    /remove
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("remove")
-    .setDescription("Elimina una canción de la cola")
+    .setDescription(
+      "Elimina una canción de la cola"
+    )
     .addIntegerOption(option =>
       option
         .setName("posicion")
-        .setDescription("Posición de la canción")
+        .setDescription(
+          "Posición de la canción"
+        )
         .setMinValue(1)
         .setRequired(true)
     ),
 
   async execute(interaction) {
     const posicion =
-      interaction.options.getInteger("posicion");
+      interaction.options.getInteger(
+        "posicion"
+      );
 
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    if (
-      posicion > cola.canciones.length
-    ) {
-      return interaction.reply({
-        content:
-          "❌ Esa posición no existe.",
-        ephemeral: true
-      });
+    if (!data) {
+      return interaction.reply(
+        "❌ La cola está vacía."
+      );
     }
 
-    const eliminada =
-      cola.canciones.splice(
-        posicion - 1,
+    const indice =
+      posicion - 1;
+
+    if (
+      indice < 0 ||
+      indice >= data.queue.length
+    ) {
+      return interaction.reply(
+        "❌ Esa posición no existe."
+      );
+    }
+
+    const eliminado =
+      data.queue.splice(
+        indice,
         1
       )[0];
 
     await interaction.reply(
-      `🗑️ Eliminada de la cola: **${eliminada.nombre}**`
+      `🗑️ Eliminado de la cola:\n${eliminado.name}`
     );
   }
 });
@@ -409,21 +958,29 @@ commands.push({
    /clearqueue
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("clearqueue")
-    .setDescription("Limpia toda la cola"),
+    .setDescription(
+      "Limpia la cola"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    const cantidad =
-      cola.canciones.length;
+    if (!data) {
+      return interaction.reply(
+        "❌ La cola ya está vacía."
+      );
+    }
 
-    cola.canciones = [];
+    data.queue = [];
 
     await interaction.reply(
-      `🗑️ Se eliminaron **${cantidad} canciones** de la cola.`
+      "🧹 Cola limpiada."
     );
   }
 });
@@ -432,46 +989,27 @@ commands.push({
    /join
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("join")
-    .setDescription("Prepara el bot para entrar al canal de voz"),
+    .setDescription(
+      "Hace que el bot entre a tu canal de voz"
+    ),
 
   async execute(interaction) {
-    const miembro =
-      interaction.member;
+    try {
+      await conectarVoz(
+        interaction
+      );
 
-    const canal =
-      miembro?.voice?.channel;
-
-    if (!canal) {
-      return interaction.reply({
-        content:
-          "❌ Primero entra a un canal de voz.",
-        ephemeral: true
-      });
+      await interaction.reply(
+        "🔊 Entré a tu canal de voz."
+      );
+    } catch (error) {
+      await interaction.reply(
+        `❌ ${error.message}`
+      );
     }
-
-    if (
-      canal.type !== ChannelType.GuildVoice &&
-      canal.type !== ChannelType.GuildStageVoice
-    ) {
-      return interaction.reply({
-        content:
-          "❌ Ese canal no es un canal de voz válido.",
-        ephemeral: true
-      });
-    }
-
-    const cola = obtenerCola(interaction.guildId);
-
-    cola.conectado = true;
-    cola.canalVoz = canal.id;
-
-    await interaction.reply(
-      `🔊 Canal de voz seleccionado: **${canal.name}**\n\n` +
-      `⚠️ La conexión de audio real se configurará al instalar el reproductor de voz.`
-    );
   }
 });
 
@@ -479,57 +1017,80 @@ commands.push({
    /leave
 ========================================================= */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("leave")
-    .setDescription("Saca el bot del canal de voz"),
+    .setDescription(
+      "Saca al bot del canal de voz"
+    ),
 
   async execute(interaction) {
-    const cola = obtenerCola(interaction.guildId);
+    const data =
+      servidores.get(
+        interaction.guild.id
+      );
 
-    cola.conectado = false;
-    cola.canalVoz = null;
-    cola.actual = null;
-    cola.canciones = [];
+    if (!data?.connection) {
+      return interaction.reply(
+        "❌ No estoy en ningún canal de voz."
+      );
+    }
+
+    data.player.stop(
+      true
+    );
+
+    data.queue = [];
+    data.current = null;
+
+    data.connection.destroy();
+
+    data.connection = null;
+    data.voiceChannelId = null;
 
     await interaction.reply(
-      "👋 El bot salió del sistema de música y la cola fue limpiada."
+      "👋 Salí del canal de voz."
     );
   }
 });
 
-/* =========================================================
-   /musichelp
-========================================================= */
+/* /musichelp */
 
-commands.push({
+comandos.push({
   data: new SlashCommandBuilder()
     .setName("musichelp")
-    .setDescription("Muestra los comandos de música"),
+    .setDescription(
+      "Muestra los comandos de música"
+    ),
 
   async execute(interaction) {
-    const embed = new EmbedBuilder()
-      .setTitle("🎵 Comandos de música")
-      .setDescription(
-        [
-          "`/play` — Añadir canción.",
-          "`/pause` — Pausar.",
-          "`/resume` — Reanudar.",
-          "`/skip` — Saltar canción.",
-          "`/stop` — Detener.",
-          "`/queue` — Ver cola.",
-          "`/nowplaying` — Canción actual.",
-          "`/volume` — Cambiar volumen.",
-          "`/loop` — Activar/desactivar loop.",
-          "`/shuffle` — Mezclar cola.",
-          "`/remove` — Eliminar canción.",
-          "`/clearqueue` — Limpiar cola.",
-          "`/join` — Entrar/preparar canal.",
-          "`/leave` — Salir.",
-          "`/musichelp` — Esta ayuda."
-        ].join("\n")
-      )
-      .setColor(0x5865f2);
+    const embed =
+      new EmbedBuilder()
+        .setTitle(
+          "🎵 DARK FF V1 — Música"
+        )
+        .setDescription(
+          [
+            "`/play` — Reproducir una URL directa",
+            "`/pause` — Pausar",
+            "`/resume` — Reanudar",
+            "`/skip` — Siguiente",
+            "`/stop` — Detener",
+            "`/queue` — Ver cola",
+            "`/nowplaying` — Ver actual",
+            "`/volume` — Cambiar volumen",
+            "`/loop` — Activar/desactivar loop",
+            "`/shuffle` — Mezclar cola",
+            "`/remove` — Quitar canción",
+            "`/clearqueue` — Limpiar cola",
+            "`/join` — Entrar al canal",
+            "`/leave` — Salir del canal"
+          ].join("\n")
+        )
+        .setColor("Blue")
+        .setFooter({
+          text: "DARK FF V1 • Música"
+        });
 
     await interaction.reply({
       embeds: [embed]
@@ -537,8 +1098,6 @@ commands.push({
   }
 });
 
-/* =========================================================
-   EXPORTACIÓN
-========================================================= */
+/* Exportar comandos */
 
-module.exports = commands;
+module.exports = comandos;
