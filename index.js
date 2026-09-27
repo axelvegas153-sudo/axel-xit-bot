@@ -93,11 +93,8 @@ console.log(`📦 Comandos cargados: ${client.commands.size}`);
 /* REGISTRAR COMANDOS */
 
 async function registrarComandos() {
-  const comandos = [];
-
-  for (const comando of client.commands.values()) {
-    comandos.push(comando.data.toJSON());
-  }
+  const comandos = [...client.commands.values()]
+    .map(c => c.data.toJSON());
 
   console.log(`📤 Enviando ${comandos.length} comandos...`);
 
@@ -105,14 +102,23 @@ async function registrarComandos() {
 
   try {
     await rest.put(
-      Routes.applicationGuildCommands(
-        CLIENT_ID,
-        GUILD_ID
-      ),
-      {
-        body: comandos
-      }
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+      { body: comandos }
     );
+
+    console.log("✅ TODOS LOS COMANDOS REGISTRADOS");
+
+  } catch (error) {
+    console.log("❌ ERROR REGISTRANDO COMANDOS");
+    console.log("📛 Discord dijo:");
+
+    if (error.rawError?.errors) {
+      console.log(JSON.stringify(error.rawError.errors, null, 2));
+    } else {
+      console.log(error.message);
+    }
+  }
+}
 
     console.log("✅ COMANDOS REGISTRADOS CORRECTAMENTE");
 
