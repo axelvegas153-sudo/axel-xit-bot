@@ -1,7 +1,7 @@
 {
-  "name": "axel-xit",
+  "name": "dark-ff-v1",
   "version": "1.0.0",
-  "description": "Bot público de Discord Axel XIT",
+  "description": "DARK FF V1 - Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,10 +10,11 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "discord.js": "14.27.0",
-    "@discordjs/voice": "0.19.2",
-    "dotenv": "16.6.1",
-    "ffmpeg-static": "5.2.0",
-    "opusscript": "0.0.8"
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.19.2",
+    "discord.js": "^14.27.0",
+    "dotenv": "^16.4.7",
+    "ffmpeg-static": "^5.2.0",
+    "opusscript": "^0.0.8"
   }
 }
