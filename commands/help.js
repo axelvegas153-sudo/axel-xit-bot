@@ -12,6 +12,7 @@ const {
 // ======================================================
 
 const categorias = {
+
     moderacion: {
         nombre: "🛡️ Moderación",
         descripcion: "Comandos para moderar miembros y canales.",
@@ -48,7 +49,7 @@ const categorias = {
         descripcion: "Herramientas para el equipo de moderación.",
         comandos: [
             "/addrole",
-            "/removerrole",
+            "/removerole",
             "/createrole",
             "/deleterole",
             "/roleinfo",
@@ -363,19 +364,6 @@ const categorias = {
         ]
     },
 
-    memes: {
-        nombre: "🤣 Memes",
-        descripcion: "Memes y contenido divertido.",
-        comandos: [
-            "/meme",
-            "/memerandom",
-            "/memes",
-            "/memecreate",
-            "/memedelete",
-            "/memehelp"
-        ]
-    },
-
     ia: {
         nombre: "🤖 Inteligencia Artificial",
         descripcion: "Funciones de inteligencia artificial.",
@@ -535,22 +523,6 @@ const categorias = {
             "/leave",
             "/musichelp"
         ]
-    },
-
-    internet: {
-        nombre: "🌐 Internet",
-        descripcion: "Herramientas relacionadas con Internet.",
-        comandos: [
-            "/search",
-            "/weather",
-            "/news",
-            "/website",
-            "/ipinfo",
-            "/dns",
-            "/httpstatus",
-            "/urlinfo",
-            "/internethelp"
-        ]
     }
 };
 
@@ -560,7 +532,9 @@ const categorias = {
 
 function crearInicio() {
     const totalComandos = Object.values(categorias)
-        .reduce((total, categoria) => total + categoria.comandos.length, 0);
+        .reduce((total, categoria) => {
+            return total + categoria.comandos.length;
+        }, 0);
 
     return new EmbedBuilder()
         .setTitle("🤖 DARK FF V1")
