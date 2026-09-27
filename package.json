@@ -1,21 +1,20 @@
 {
   "name": "dark-ff-v1",
   "version": "1.0.0",
-  "description": "DARK FF V1 - Discord Bot",
+  "description": "Bot profesional Discord DARK FF V1",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
-    "@discordjs/opus": "^0.10.0",
-    "@discordjs/voice": "^0.19.2",
-    "discord.js": "^14.27.0",
-    "dotenv": "^16.4.7",
-    "ffmpeg-static": "^5.2.0",
-    "opusscript": "^0.0.8",
-    "prism-media": "^1.3.5"
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "axios": "^1.7.2",
+    "@discordjs/voice": "^0.16.1",
+    "discord-player": "^6.8.4"
   }
 }
