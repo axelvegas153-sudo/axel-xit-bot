@@ -16,7 +16,7 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 
 if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
-  console.log("❌ Faltan TOKEN, CLIENT_ID o GUILD_ID en Railway.");
+  console.log("❌ Faltan variables TOKEN, CLIENT_ID o GUILD_ID.");
   process.exit(1);
 }
 
@@ -31,20 +31,21 @@ const client = new Client({
 
 client.commands = new Collection();
 
-const commandsPath = path.join(__dirname, "commands");
-
 /* CARGAR CATEGORÍAS */
 
-function cargarComandos(dir) {
-  if (!fs.existsSync(dir)) return;
+function cargarComandos(carpeta) {
+  if (!fs.existsSync(carpeta)) {
+    console.log("❌ No existe la carpeta commands.");
+    return;
+  }
 
-  const archivos = fs.readdirSync(dir);
+  const archivos = fs.readdirSync(carpeta);
 
   for (const archivo of archivos) {
-    const ruta = path.join(dir, archivo);
-    const stat = fs.statSync(ruta);
+    const ruta = path.join(carpeta, archivo);
+    const informacion = fs.statSync(ruta);
 
-    if (stat.isDirectory()) {
+    if (informacion.isDirectory()) {
       cargarComandos(ruta);
       continue;
     }
@@ -56,20 +57,25 @@ function cargarComandos(dir) {
 
       const modulo = require(ruta);
 
-      const lista = Array.isArray(modulo)
+      const comandos = Array.isArray(modulo)
         ? modulo
         : [modulo];
 
-      for (const comando of lista) {
-        if (!comando?.data?.name || !comando?.execute) {
-          console.log(`⚠️ Ignorado: ${archivo}`);
+      for (const comando of comandos) {
+        if (
+          !comando ||
+          !comando.data ||
+          !comando.data.name ||
+          !comando.execute
+        ) {
+          console.log(`⚠️ Archivo ignorado: ${archivo}`);
           continue;
         }
 
         const nombre = comando.data.name;
 
         if (client.commands.has(nombre)) {
-          console.log(`⚠️ Comando duplicado: /${nombre}`);
+          console.log(`⚠️ Duplicado: /${nombre}`);
           continue;
         }
 
@@ -79,54 +85,88 @@ function cargarComandos(dir) {
       }
 
     } catch (error) {
-      console.log(`❌ Error en ${archivo}`);
+      console.log(`❌ Error cargando ${archivo}`);
       console.log(error.message);
     }
   }
 }
 
-cargarComandos(commandsPath);
+cargarComandos(
+  path.join(__dirname, "commands")
+);
 
 console.log("");
-console.log(`📦 Comandos cargados: ${client.commands.size}`);
+console.log(
+  `📦 Comandos cargados: ${client.commands.size}`
+);
 
 /* REGISTRAR COMANDOS */
 
 async function registrarComandos() {
-  const comandos = [...client.commands.values()]
-    .map(c => c.data.toJSON());
+  const comandos = [];
 
-  console.log(`📤 Enviando ${comandos.length} comandos...`);
+  for (const comando of client.commands.values()) {
+    try {
+      const datos = comando.data.toJSON();
 
-  const rest = new REST({ version: "10" }).setToken(TOKEN);
+      if (
+        !datos.name ||
+        !datos.description
+      ) {
+        console.log(
+          `⚠️ Comando incompleto: /${datos.name || "sin nombre"}`
+        );
 
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-      { body: comandos }
-    );
+        continue;
+      }
 
-    console.log("✅ TODOS LOS COMANDOS REGISTRADOS");
+      comandos.push(datos);
 
-  } catch (error) {
-    console.log("❌ ERROR REGISTRANDO COMANDOS");
-    console.log("📛 Discord dijo:");
+    } catch (error) {
+      console.log(
+        `❌ Error preparando comando: ${comando.data.name}`
+      );
 
-    if (error.rawError?.errors) {
-      console.log(JSON.stringify(error.rawError.errors, null, 2));
-    } else {
       console.log(error.message);
     }
   }
-}
 
-    console.log("✅ COMANDOS REGISTRADOS CORRECTAMENTE");
+  console.log(
+    `📤 Enviando ${comandos.length} comandos...`
+  );
+
+  const rest = new REST({
+    version: "10"
+  }).setToken(TOKEN);
+
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(
+        CLIENT_ID,
+        GUILD_ID
+      ),
+      {
+        body: comandos
+      }
+    );
+
+    console.log(
+      "✅ TODOS LOS COMANDOS REGISTRADOS"
+    );
 
   } catch (error) {
-    console.log("❌ ERROR REGISTRANDO COMANDOS");
+    console.log(
+      "❌ ERROR REGISTRANDO COMANDOS"
+    );
 
     if (error.rawError) {
-      console.log(JSON.stringify(error.rawError, null, 2));
+      console.log(
+        JSON.stringify(
+          error.rawError,
+          null,
+          2
+        )
+      );
     } else {
       console.log(error.message);
     }
@@ -135,11 +175,11 @@ async function registrarComandos() {
 
 /* BOT READY */
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━");
   console.log(`🤖 ${client.user.tag}`);
-  console.log("🟢 Bot conectado");
+  console.log("🟢 DARK FF V1 conectado");
   console.log("━━━━━━━━━━━━━━━━━━━━");
 
   await registrarComandos();
@@ -147,43 +187,63 @@ client.once("ready", async () => {
 
 /* SLASH COMMANDS */
 
-client.on("interactionCreate", async interaction => {
+client.on(
+  "interactionCreate",
+  async interaction => {
 
-  if (!interaction.isChatInputCommand()) return;
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
 
-  const comando = client.commands.get(
-    interaction.commandName
-  );
+    const comando =
+      client.commands.get(
+        interaction.commandName
+      );
 
-  if (!comando) {
-    return interaction.reply({
-      content: "❌ Ese comando no está disponible.",
-      ephemeral: true
-    });
-  }
+    if (!comando) {
+      await interaction.reply({
+        content:
+          "❌ Ese comando no está disponible.",
+        ephemeral: true
+      }).catch(() => {});
 
-  try {
-    await comando.execute(interaction);
+      return;
+    }
 
-  } catch (error) {
+    try {
+      await comando.execute(
+        interaction
+      );
 
-    console.error(
-      `❌ Error en /${interaction.commandName}:`,
-      error
-    );
+    } catch (error) {
 
-    const mensaje = {
-      content: "❌ Ocurrió un error ejecutando este comando.",
-      ephemeral: true
-    };
+      console.error(
+        `❌ Error en /${interaction.commandName}:`
+      );
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(mensaje).catch(() => {});
-    } else {
-      await interaction.reply(mensaje).catch(() => {});
+      console.error(error);
+
+      const respuesta = {
+        content:
+          "❌ Ocurrió un error ejecutando este comando.",
+        ephemeral: true
+      };
+
+      if (
+        interaction.replied ||
+        interaction.deferred
+      ) {
+        await interaction
+          .followUp(respuesta)
+          .catch(() => {});
+      } else {
+        await interaction
+          .reply(respuesta)
+          .catch(() => {});
+      }
     }
   }
-});
+);
 
 /* LOGIN */
 
