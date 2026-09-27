@@ -1,17 +1,5 @@
 {
-  "economia": {},
-  "tienda": {},
-  "inventarios": {},
-  "niveles": {},
-  "logros": {},
-  "recompensas": {},
-  "tickets": {},
-  "automod": {},
-  "logs": {},
-  "estadisticas": {},
-  "archivos": {},
-  "premium": {},
-  "seguridad": {},
-  "servidores": {},
-  "plantillas": {}
+  "economia": {}, "tienda": {}, "inventarios": {}, "niveles": {}, "logros": {},
+  "recompensas": {}, "tickets": {}, "automod": {}, "logs": {}, "estadisticas": {},
+  "archivos": {}, "premium": {}, "seguridad": {}, "servidores": {}, "plantillas": {}
 }
