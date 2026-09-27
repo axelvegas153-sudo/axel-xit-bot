@@ -1,0 +1,47 @@
+const { SlashCommandBuilder } = require('discord.js');
+
+module.exports = [
+    { data: new SlashCommandBuilder().setName('meme').setDescription('Manda un meme'),
+    execute: async i => await i.reply('😂 Meme random')},
+    { data: new SlashCommandBuilder().setName('chiste').setDescription('Cuenta un chiste'),
+    execute: async i => await i.reply('¿Qué le dice un techo a otro? ¡Techo de menos!')},
+    { data: new SlashCommandBuilder().setName('8ball').setDescription('Pregunta a la bola 8').addStringOption(o=>o.setName('pregunta').setRequired(true)),
+    execute: async i => {
+        const r = ['Si','No','Tal vez','Definitivamente'];
+        await i.reply(`🎱 ${i.options.getString('pregunta')}\nRespuesta: ${r[Math.floor(Math.random()*4)]}`);
+    }},
+    { data: new SlashCommandBuilder().setName('ship').setDescription('Shipea 2 personas').addUserOption(o=>o.setName('p1').setRequired(true)).addUserOption(o=>o.setName('p2').setRequired(true)),
+    execute: async i => await i.reply(`💖 ${i.options.getUser('p1').username} x ${i.options.getUser('p2').username} = ${Math.floor(Math.random()*100)}%`)},
+    { data: new SlashCommandBuilder().setName('dado').setDescription('Tira un dado'),
+    execute: async i => await i.reply(`🎲 Sacaste: ${Math.floor(Math.random()*6)+1}`)},
+    { data: new SlashCommandBuilder().setName('coinflip').setDescription('Lanza una moneda'),
+    execute: async i => await i.reply(`🪙 Salió: ${Math.random()<0.5?'Cara':'Cruz'}`)},
+    { data: new SlashCommandBuilder().setName('pp').setDescription('Medir pp').addUserOption(o=>o.setName('usuario')),
+    execute: async i => await i.reply(`🍆 ${i.options.getUser('usuario')||i.user} tiene: ${'='.repeat(Math.floor(Math.random()*20))}D`)},
+    { data: new SlashCommandBuilder().setName('gay').setDescription('Medidor gay').addUserOption(o=>o.setName('usuario')),
+    execute: async i => await i.reply(`🏳️‍🌈 ${i.options.getUser('usuario')||i.user} es ${Math.floor(Math.random()*100)}% gay`)},
+    { data: new SlashCommandBuilder().setName('slap').setDescription('Cachetear').addUserOption(o=>o.setName('usuario').setRequired(true)),
+    execute: async i => await i.reply(`👋 ${i.user} cachetea a ${i.options.getUser('usuario')}`)},
+    { data: new SlashCommandBuilder().setName('hug').setDescription('Abrazar').addUserOption(o=>o.setName('usuario').setRequired(true)),
+    execute: async i => await i.reply(`🤗 ${i.user} abraza a ${i.options.getUser('usuario')}`)},
+    { data: new SlashCommandBuilder().setName('kiss').setDescription('Besar').addUserOption(o=>o.setName('usuario').setRequired(true)),
+    execute: async i => await i.reply(`😘 ${i.user} besa a ${i.options.getUser('usuario')}`)},
+    { data: new SlashCommandBuilder().setName('roast').setDescription('Insultar').addUserOption(o=>o.setName('usuario').setRequired(true)),
+    execute: async i => await i.reply(`🔥 ${i.options.getUser('usuario')} eres tan lento que sales en cámara lenta`)},
+    { data: new SlashCommandBuilder().setName('compliment').setDescription('Elogiar').addUserOption(o=>o.setName('usuario').setRequired(true)),
+    execute: async i => await i.reply(`✨ ${i.options.getUser('usuario')} eres increíble!`)},
+    { data: new SlashCommandBuilder().setName('rate').setDescription('Calificar').addStringOption(o=>o.setName('cosa').setRequired(true)),
+    execute: async i => await i.reply(`⭐ Califico ${i.options.getString('cosa')} con ${Math.floor(Math.random()*10)+1}/10`)},
+    { data: new SlashCommandBuilder().setName('fact').setDescription('Dato curioso'),
+    execute: async i => await i.reply('🧠 Los pulpos tienen 3 corazones')},
+    { data: new SlashCommandBuilder().setName('advice').setDescription('Consejo random'),
+    execute: async i => await i.reply('💡 Consejo: Toma agua')},
+    { data: new SlashCommandBuilder().setName('joke').setDescription('Chiste en ingles'),
+    execute: async i => await i.reply('Why did the chicken cross the road? To get to the other side!')},
+    { data: new SlashCommandBuilder().setName('quote').setDescription('Frase random'),
+    execute: async i => await i.reply('📜 "El que persevera, alcanza"')},
+    { data: new SlashCommandBuilder().setName('pickup').setDescription('Piropó'),
+    execute: async i => await i.reply('😏 ¿Crees en amor a primera vista o paso otra vez?')},
+    { data: new SlashCommandBuilder().setName('random').setDescription('Numero random'),
+    execute: async i => await i.reply(`🎲 Numero: ${Math.floor(Math.random()*1000)}`)}
+];
