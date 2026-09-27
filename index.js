@@ -19,44 +19,34 @@ const {
   ChannelType
 } = require("discord.js");
 
-/* =========================================================
+/* =====================================================
    CONFIGURACIÓN
-========================================================= */
+===================================================== */
 
-const TOKEN =
-  process.env.TOKEN ||
-  process.env.DISCORD_TOKEN;
-
-const CLIENT_ID =
-  process.env.CLIENT_ID ||
-  process.env.DISCORD_CLIENT_ID;
-
-const GUILD_ID =
-  process.env.GUILD_ID ||
-  process.env.DISCORD_GUILD_ID;
-
-const PORT =
-  Number(process.env.PORT) || 3000;
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+const OWNER_ID = process.env.OWNER_ID || "1483521913429950658";
+const PORT = process.env.PORT || 3000;
 
 if (!TOKEN) {
-  console.error("❌ Falta TOKEN en Railway.");
+  console.error("❌ Falta TOKEN en las variables de Railway.");
   process.exit(1);
 }
 
 if (!CLIENT_ID) {
-  console.error("❌ Falta CLIENT_ID en Railway.");
+  console.error("❌ Falta CLIENT_ID en las variables de Railway.");
   process.exit(1);
 }
 
 if (!GUILD_ID) {
-  console.warn(
-    "⚠️ No existe GUILD_ID. Los comandos se registrarán globalmente."
-  );
+  console.error("❌ Falta GUILD_ID en las variables de Railway.");
+  process.exit(1);
 }
 
-/* =========================================================
-   CLIENTE
-========================================================= */
+/* =====================================================
+   CLIENTE DISCORD
+===================================================== */
 
 const client = new Client({
   intents: [
@@ -68,613 +58,578 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildPresences
   ],
-
   partials: [
     Partials.Channel,
     Partials.Message,
+    Partials.Reaction,
     Partials.User,
     Partials.GuildMember
   ]
 });
 
-/* =========================================================
-   COLECCIONES
-========================================================= */
-
 client.commands = new Collection();
 
-/* =========================================================
+/* =====================================================
    DATABASE
-========================================================= */
+===================================================== */
 
-const databasePath =
-  path.join(__dirname, "database.json");
+const DB_FILE = path.join(__dirname, "database.json");
 
-function loadDatabase() {
+let db = {};
+
+function cargarDatabase() {
   try {
-    if (!fs.existsSync(databasePath)) {
-      fs.writeFileSync(
-        databasePath,
-        JSON.stringify({}, null, 2)
-      );
+    if (!fs.existsSync(DB_FILE)) {
+      db = {};
+      guardarDatabase();
+      return;
     }
 
-    const contenido =
-      fs.readFileSync(
-        databasePath,
-        "utf8"
-      );
+    const contenido = fs.readFileSync(DB_FILE, "utf8");
 
     if (!contenido.trim()) {
-      return {};
+      db = {};
+      guardarDatabase();
+      return;
     }
 
-    return JSON.parse(contenido);
+    db = JSON.parse(contenido);
   } catch (error) {
-    console.error(
-      "❌ Error leyendo database.json:",
-      error
-    );
-
-    return {};
-  }
-}
-
-function saveDatabase() {
-  try {
-    fs.writeFileSync(
-      databasePath,
-      JSON.stringify(db, null, 2)
-    );
-  } catch (error) {
-    console.error(
-      "❌ Error guardando database.json:",
-      error
-    );
-  }
-}
-
-let db = loadDatabase();
-
-/* =========================================================
-   ASEGURAR BASE DE DATOS
-========================================================= */
-
-function ensureDatabase() {
-  if (!db || typeof db !== "object") {
+    console.error("❌ Error leyendo database.json:", error);
     db = {};
   }
-
-  const estructuras = [
-    "automod",
-    "logs",
-    "niveles",
-    "estadisticas",
-    "economia",
-    "tienda",
-    "inventarios",
-    "logros",
-    "recompensas",
-    "archivos",
-    "privacidad",
-    "tickets",
-    "seguridad",
-    "servidor",
-    "musica"
-  ];
-
-  for (const nombre of estructuras) {
-    if (!db[nombre]) {
-      db[nombre] = {};
-    }
-  }
-
-  if (!db.premium) {
-    db.premium = {
-      usuarios: {},
-      servidores: {},
-      configuracion: {
-        activado: true
-      }
-    };
-  }
-
-  saveDatabase();
 }
 
-ensureDatabase();
+function guardarDatabase() {
+  try {
+    fs.writeFileSync(
+      DB_FILE,
+      JSON.stringify(db, null, 2),
+      "utf8"
+    );
+  } catch (error) {
+    console.error("❌ Error guardando database.json:", error);
+  }
+}
 
-/* =========================================================
-   CARGADOR DE COMANDOS
-========================================================= */
+cargarDatabase();
 
-const commandsPath =
-  path.join(__dirname, "commands");
+/* =====================================================
+   HELPERS DATABASE
+===================================================== */
 
-const slashCommands = [];
+function getGuildDatabase(guildId) {
+  if (!db.guilds) db.guilds = {};
 
-function getCommandFiles(dir) {
-  if (!fs.existsSync(dir)) {
-    return [];
+  if (!db.guilds[guildId]) {
+    db.guilds[guildId] = {};
   }
 
-  const archivos =
-    fs.readdirSync(dir, {
-      withFileTypes: true
-    });
+  return db.guilds[guildId];
+}
 
-  const resultado = [];
+function isOwner(userId) {
+  return userId === OWNER_ID;
+}
 
-  for (const archivo of archivos) {
-    const ruta =
-      path.join(dir, archivo.name);
+function isStaff(interaction) {
+  if (!interaction.member) return false;
 
-    if (archivo.isDirectory()) {
-      resultado.push(
-        ...getCommandFiles(ruta)
+  return (
+    isOwner(interaction.user.id) ||
+    interaction.member.permissions?.has(
+      PermissionsBitField.Flags.ManageGuild
+    ) ||
+    interaction.member.permissions?.has(
+      PermissionsBitField.Flags.Administrator
+    )
+  );
+}
+
+/* =====================================================
+   CARGAR COMANDOS
+===================================================== */
+
+const commandsPath = path.join(__dirname, "commands");
+
+if (!fs.existsSync(commandsPath)) {
+  console.error("❌ No existe la carpeta commands.");
+  process.exit(1);
+}
+
+function obtenerArchivosJS(carpeta) {
+  let archivos = [];
+
+  if (!fs.existsSync(carpeta)) {
+    return archivos;
+  }
+
+  const elementos = fs.readdirSync(carpeta, {
+    withFileTypes: true
+  });
+
+  for (const elemento of elementos) {
+    const ruta = path.join(carpeta, elemento.name);
+
+    if (elemento.isDirectory()) {
+      archivos = archivos.concat(
+        obtenerArchivosJS(ruta)
       );
     } else if (
-      archivo.name.endsWith(".js")
+      elemento.isFile() &&
+      elemento.name.endsWith(".js")
     ) {
-      resultado.push(ruta);
+      archivos.push(ruta);
     }
   }
 
-  return resultado;
+  return archivos;
 }
 
-/* =========================================================
-   LIMPIAR DATOS DE SLASH COMMANDS
-========================================================= */
+let archivosComandos = obtenerArchivosJS(commandsPath);
 
-function limpiarCommandJSON(data) {
-  if (!data || typeof data !== "object") {
-    return data;
-  }
+/*
+  Ponemos help.js primero para que el /help interactivo
+  tenga prioridad sobre otro /help duplicado.
+*/
+archivosComandos.sort((a, b) => {
+  const aHelp = path.basename(a).toLowerCase() === "help.js";
+  const bHelp = path.basename(b).toLowerCase() === "help.js";
 
-  const copia =
-    JSON.parse(JSON.stringify(data));
+  if (aHelp && !bHelp) return -1;
+  if (!aHelp && bHelp) return 1;
 
-  /*
-   * Discord permite descripciones de
-   * comandos/opciones de hasta 100 caracteres.
-   */
-
-  if (
-    typeof copia.description === "string" &&
-    copia.description.length > 100
-  ) {
-    console.warn(
-      `⚠️ Descripción demasiado larga en /${copia.name}. Se recortará.`
-    );
-
-    copia.description =
-      copia.description.slice(0, 100);
-  }
-
-  if (Array.isArray(copia.options)) {
-    for (const option of copia.options) {
-      limpiarOption(option);
-    }
-  }
-
-  return copia;
-}
-
-function limpiarOption(option) {
-  if (!option || typeof option !== "object") {
-    return;
-  }
-
-  if (
-    typeof option.description === "string" &&
-    option.description.length > 100
-  ) {
-    console.warn(
-      `⚠️ Descripción larga en una opción. Se recortará.`
-    );
-
-    option.description =
-      option.description.slice(0, 100);
-  }
-
-  if (
-    typeof option.name === "string" &&
-    option.name.length > 32
-  ) {
-    console.warn(
-      `⚠️ Nombre de opción demasiado largo: ${option.name}`
-    );
-  }
-
-  if (Array.isArray(option.options)) {
-    for (const subOption of option.options) {
-      limpiarOption(subOption);
-    }
-  }
-
-  if (Array.isArray(option.choices)) {
-    for (const choice of option.choices) {
-      if (
-        typeof choice.name === "string" &&
-        choice.name.length > 100
-      ) {
-        choice.name =
-          choice.name.slice(0, 100);
-      }
-    }
-  }
-}
-
-/* =========================================================
-   VALIDAR COMMAND JSON
-========================================================= */
-
-function validarCommandJSON(data) {
-  if (!data) {
-    return {
-      valido: false,
-      error: "Comando vacío."
-    };
-  }
-
-  if (!data.name) {
-    return {
-      valido: false,
-      error: "El comando no tiene nombre."
-    };
-  }
-
-  if (
-    !/^[a-z0-9_-]{1,32}$/.test(
-      data.name
-    )
-  ) {
-    return {
-      valido: false,
-      error:
-        `Nombre inválido: ${data.name}`
-    };
-  }
-
-  if (
-    typeof data.description !== "string" ||
-    data.description.length < 1
-  ) {
-    return {
-      valido: false,
-      error:
-        "El comando no tiene descripción válida."
-    };
-  }
-
-  return {
-    valido: true
-  };
-}
-
-/* =========================================================
-   CARGAR TODOS LOS COMANDOS
-========================================================= */
-
-const commandFiles =
-  getCommandFiles(commandsPath);
+  return a.localeCompare(b);
+});
 
 console.log(
-  `📂 Archivos encontrados: ${commandFiles.length}`
+  `📂 Archivos encontrados: ${archivosComandos.length}`
 );
 
-let comandosInvalidos = 0;
-
-for (const filePath of commandFiles) {
+for (const archivo of archivosComandos) {
   try {
-    delete require.cache[
-      require.resolve(filePath)
-    ];
+    delete require.cache[require.resolve(archivo)];
 
-    const loaded =
-      require(filePath);
+    const modulo = require(archivo);
 
-    const comandos =
-      Array.isArray(loaded)
-        ? loaded
-        : [loaded];
+    /*
+      Las categorías normalmente exportan:
+      module.exports = commands;
 
-    for (const command of comandos) {
-      if (
-        !command ||
-        !command.data ||
-        typeof command.execute !== "function"
-      ) {
-        console.warn(
-          `⚠️ Comando inválido en: ${filePath}`
+      Pero help.js puede exportar un solo objeto.
+    */
+
+    if (Array.isArray(modulo)) {
+      for (const command of modulo) {
+        if (!command?.data?.name) {
+          console.log(
+            `⚠️ Comando inválido en: ${archivo}`
+          );
+          continue;
+        }
+
+        if (client.commands.has(command.data.name)) {
+          console.log(
+            `⚠️ Comando duplicado ignorado: /${command.data.name}`
+          );
+          console.log(`   Archivo: ${archivo}`);
+          continue;
+        }
+
+        client.commands.set(
+          command.data.name,
+          command
         );
-
-        comandosInvalidos++;
-        continue;
       }
-
-      const nombre =
-        command.data.name;
-
-      if (!nombre) {
-        console.warn(
-          `⚠️ Comando sin nombre en: ${filePath}`
+    } else if (modulo?.data?.name) {
+      if (client.commands.has(modulo.data.name)) {
+        console.log(
+          `⚠️ Comando duplicado ignorado: /${modulo.data.name}`
         );
-
-        comandosInvalidos++;
-        continue;
-      }
-
-      if (
-        client.commands.has(nombre)
-      ) {
-        console.warn(
-          `⚠️ Comando duplicado ignorado: /${nombre}`
+        console.log(`   Archivo: ${archivo}`);
+      } else {
+        client.commands.set(
+          modulo.data.name,
+          modulo
         );
-
-        continue;
       }
-
-      let json;
-
-      try {
-        json =
-          command.data.toJSON();
-      } catch (error) {
-        console.error(
-          `❌ No se pudo convertir /${nombre}:`,
-          error
-        );
-
-        comandosInvalidos++;
-        continue;
-      }
-
-      json =
-        limpiarCommandJSON(json);
-
-      const validacion =
-        validarCommandJSON(json);
-
-      if (!validacion.valido) {
-        console.error(
-          `❌ /${nombre} NO registrado: ${validacion.error}`
-        );
-
-        comandosInvalidos++;
-        continue;
-      }
-
-      client.commands.set(
-        nombre,
-        command
-      );
-
-      slashCommands.push(json);
-
+    } else {
       console.log(
-        `✅ Cargado: /${nombre}`
+        `⚠️ Archivo sin comando: ${archivo}`
       );
     }
+
   } catch (error) {
     console.error(
-      `❌ Error cargando archivo: ${filePath}`
+      `❌ ERROR CARGANDO: ${archivo}`
     );
-
     console.error(error);
-
-    comandosInvalidos++;
   }
 }
-
-console.log(
-  "================================="
-);
 
 console.log(
   `📦 Comandos cargados: ${client.commands.size}`
 );
 
-console.log(
-  `⚠️ Comandos con problemas: ${comandosInvalidos}`
-);
+/* =====================================================
+   VALIDAR COMANDOS ANTES DE DISCORD
+===================================================== */
 
-console.log(
-  "================================="
-);
+function revisarStrings(obj, ruta = "") {
+  const problemas = [];
 
-/* =========================================================
-   REGISTRAR COMANDOS EN DISCORD
-========================================================= */
-
-async function registerCommands() {
-  try {
-    const rest =
-      new REST({
-        version: "10"
-      }).setToken(TOKEN);
-
-    console.log(
-      "🔄 Registrando Slash Commands..."
-    );
-
+  if (typeof obj === "string") {
     /*
-     * Primero mostramos todos los comandos
-     * que Discord recibirá.
-     */
+      Los campos de comandos de Discord tienen límites
+      bastante pequeños. Detectamos cualquier texto
+      sospechoso antes de enviarlo.
+    */
 
-    console.log(
-      `📤 Enviando ${slashCommands.length} comandos...`
-    );
+    if (obj.length > 130) {
+      problemas.push({
+        ruta,
+        longitud: obj.length,
+        texto: obj
+      });
+    }
 
-    if (GUILD_ID) {
-      await rest.put(
-        Routes.applicationGuildCommands(
-          CLIENT_ID,
-          GUILD_ID
-        ),
-        {
-          body: slashCommands
-        }
+    return problemas;
+  }
+
+  if (Array.isArray(obj)) {
+    obj.forEach((valor, indice) => {
+      problemas.push(
+        ...revisarStrings(
+          valor,
+          `${ruta}[${indice}]`
+        )
       );
+    });
 
-      console.log(
-        `✅ ${slashCommands.length} comandos registrados en el servidor.`
-      );
+    return problemas;
+  }
 
-      console.log(
-        "💡 Los comandos deberían aparecer inmediatamente al escribir /"
-      );
-    } else {
-      await rest.put(
-        Routes.applicationCommands(
-          CLIENT_ID
-        ),
-        {
-          body: slashCommands
-        }
-      );
-
-      console.log(
-        `🌍 ${slashCommands.length} comandos registrados globalmente.`
+  if (obj && typeof obj === "object") {
+    for (const [clave, valor] of Object.entries(obj)) {
+      problemas.push(
+        ...revisarStrings(
+          valor,
+          ruta ? `${ruta}.${clave}` : clave
+        )
       );
     }
-  } catch (error) {
-    console.error(
-      "================================="
+  }
+
+  return problemas;
+}
+
+function validarComandos() {
+  console.log("");
+  console.log("🔎 Revisando comandos...");
+  console.log("");
+
+  let hayProblemas = false;
+
+  for (const command of client.commands.values()) {
+    let json;
+
+    try {
+      json = command.data.toJSON();
+    } catch (error) {
+      console.log(
+        `❌ ERROR CONVIRTIENDO /${command.data?.name || "desconocido"}`
+      );
+      console.log(error);
+      hayProblemas = true;
+      continue;
+    }
+
+    /*
+      Nombre del comando
+    */
+
+    if (!json.name) {
+      console.log("❌ Comando sin nombre.");
+      hayProblemas = true;
+    }
+
+    if (json.name && json.name.length > 32) {
+      console.log(
+        `❌ /${json.name} tiene nombre demasiado largo: ${json.name.length}`
+      );
+      hayProblemas = true;
+    }
+
+    /*
+      Descripción
+    */
+
+    if (
+      json.description &&
+      json.description.length > 100
+    ) {
+      console.log("");
+      console.log("🚨 COMANDO PROBLEMÁTICO");
+      console.log(`   Comando: /${json.name}`);
+      console.log(
+        `   Campo: description`
+      );
+      console.log(
+        `   Longitud: ${json.description.length}`
+      );
+      console.log(
+        `   Texto: ${json.description}`
+      );
+      console.log("");
+
+      hayProblemas = true;
+    }
+
+    /*
+      Opciones
+    */
+
+    if (Array.isArray(json.options)) {
+      for (const option of json.options) {
+        if (
+          option.name &&
+          option.name.length > 32
+        ) {
+          console.log("");
+          console.log("🚨 OPCIÓN PROBLEMÁTICA");
+          console.log(
+            `   Comando: /${json.name}`
+          );
+          console.log(
+            `   Opción: ${option.name}`
+          );
+          console.log(
+            `   Longitud: ${option.name.length}`
+          );
+          console.log("");
+
+          hayProblemas = true;
+        }
+
+        if (
+          option.description &&
+          option.description.length > 100
+        ) {
+          console.log("");
+          console.log("🚨 OPCIÓN PROBLEMÁTICA");
+          console.log(
+            `   Comando: /${json.name}`
+          );
+          console.log(
+            `   Opción: ${option.name}`
+          );
+          console.log(
+            `   Descripción: ${option.description}`
+          );
+          console.log(
+            `   Longitud: ${option.description.length}`
+          );
+          console.log("");
+
+          hayProblemas = true;
+        }
+
+        /*
+          Choices
+        */
+
+        if (Array.isArray(option.choices)) {
+          for (const choice of option.choices) {
+            if (
+              choice.name &&
+              choice.name.length > 100
+            ) {
+              console.log("");
+              console.log("🚨 CHOICE PROBLEMÁTICO");
+              console.log(
+                `   Comando: /${json.name}`
+              );
+              console.log(
+                `   Choice: ${choice.name}`
+              );
+              console.log(
+                `   Longitud: ${choice.name.length}`
+              );
+              console.log("");
+
+              hayProblemas = true;
+            }
+
+            if (
+              typeof choice.value === "string" &&
+              choice.value.length > 100
+            ) {
+              console.log("");
+              console.log("🚨 VALOR DE CHOICE PROBLEMÁTICO");
+              console.log(
+                `   Comando: /${json.name}`
+              );
+              console.log(
+                `   Valor: ${choice.value}`
+              );
+              console.log(
+                `   Longitud: ${choice.value.length}`
+              );
+              console.log("");
+
+              hayProblemas = true;
+            }
+          }
+        }
+      }
+    }
+
+    /*
+      Revisión general para detectar el campo exacto
+      si Discord devuelve BASE_TYPE_MAX_LENGTH.
+    */
+
+    const problemasGenerales =
+      revisarStrings(json);
+
+    for (const problema of problemasGenerales) {
+      console.log("");
+      console.log("🚨 TEXTO DEMASIADO LARGO");
+      console.log(
+        `   Comando: /${json.name}`
+      );
+      console.log(
+        `   Campo: ${problema.ruta}`
+      );
+      console.log(
+        `   Longitud: ${problema.longitud}`
+      );
+      console.log(
+        `   Texto: ${problema.texto}`
+      );
+      console.log("");
+      hayProblemas = true;
+    }
+  }
+
+  if (hayProblemas) {
+    console.log("");
+    console.log(
+      "❌ SE ENCONTRARON PROBLEMAS EN LOS COMANDOS."
+    );
+    console.log(
+      "❌ NO SE ENVIARÁN A DISCORD HASTA CORREGIRLOS."
+    );
+    console.log("");
+
+    return false;
+  }
+
+  console.log(
+    "✅ Todos los comandos pasaron la revisión."
+  );
+
+  return true;
+}
+
+/* =====================================================
+   REGISTRAR COMANDOS
+===================================================== */
+
+async function registerCommands() {
+  console.log("");
+  console.log("🔄 Preparando registro de comandos...");
+  console.log("");
+
+  const valido = validarComandos();
+
+  if (!valido) {
+    console.log("");
+    console.log(
+      "⛔ Registro cancelado para evitar romper los comandos."
+    );
+    return false;
+  }
+
+  try {
+    const rest = new REST({
+      version: "10"
+    }).setToken(TOKEN);
+
+    const comandos = [];
+
+    for (const command of client.commands.values()) {
+      comandos.push(
+        command.data.toJSON()
+      );
+    }
+
+    console.log(
+      `📦 Enviando ${comandos.length} comandos a Discord...`
     );
 
+    await rest.put(
+      Routes.applicationGuildCommands(
+        CLIENT_ID,
+        GUILD_ID
+      ),
+      {
+        body: comandos
+      }
+    );
+
+    console.log("");
+    console.log(
+      `✅ ${comandos.length} comandos registrados correctamente.`
+    );
+    console.log("");
+
+    return true;
+
+  } catch (error) {
+    console.error("");
     console.error(
       "❌ ERROR REGISTRANDO COMANDOS"
-    );
-
-    console.error(
-      "================================="
     );
 
     console.error(
       error?.message || error
     );
 
-    /*
-     * Intentamos encontrar el comando
-     * que provoca el problema.
-     */
-
-    console.log(
-      "🔎 Buscando comando problemático..."
-    );
-
-    for (
-      const comando of slashCommands
-    ) {
-      try {
-        if (
-          typeof comando.description ===
-            "string" &&
-          comando.description.length > 100
-        ) {
-          console.error(
-            `❌ Descripción larga: /${comando.name}`
-          );
-        }
-
-        if (
-          Array.isArray(
-            comando.options
-          )
-        ) {
-          revisarOpciones(
-            comando.name,
-            comando.options
-          );
-        }
-      } catch {}
-    }
-
-    console.error(
-      "⚠️ Revisa el comando señalado arriba."
-    );
-  }
-}
-
-function revisarOpciones(
-  commandName,
-  options
-) {
-  for (const option of options) {
-    if (
-      option.description &&
-      option.description.length > 100
-    ) {
+    if (error?.rawError) {
+      console.error("");
       console.error(
-        `❌ /${commandName}: opción "${option.name}" tiene descripción demasiado larga.`
+        "📋 RESPUESTA DE DISCORD:"
+      );
+
+      console.error(
+        JSON.stringify(
+          error.rawError,
+          null,
+          2
+        )
       );
     }
 
-    if (Array.isArray(option.options)) {
-      revisarOpciones(
-        commandName,
-        option.options
-      );
-    }
-  }
-}
+    console.error("");
+    console.error(
+      "🔎 Los comandos fueron cargados, pero Discord rechazó el registro."
+    );
+    console.error("");
 
-/* =========================================================
-   FUNCIONES AUXILIARES
-========================================================= */
-
-function isStaff(member) {
-  if (!member) {
     return false;
   }
-
-  if (
-    member.permissions.has(
-      PermissionsBitField.Flags.Administrator
-    )
-  ) {
-    return true;
-  }
-
-  return member.permissions.has(
-    PermissionsBitField.Flags.ManageGuild
-  );
 }
 
-function isOwner(userId) {
-  return (
-    userId ===
-    process.env.OWNER_ID
-  );
-}
-
-function getGuildDatabase(guildId) {
-  if (!db[guildId]) {
-    db[guildId] = {};
-  }
-
-  return db[guildId];
-}
-
-function save() {
-  saveDatabase();
-}
-
-/* =========================================================
+/* =====================================================
    OBTENER COMANDOS DE CATEGORÍA
-========================================================= */
+===================================================== */
 
-function obtenerComandosCategoria(
-  categoria
-) {
-  const archivo =
-    path.join(
-      commandsPath,
-      `${categoria}.js`
-    );
+function obtenerComandosCategoria(categoria) {
+  const archivo = path.join(
+    commandsPath,
+    `${categoria}.js`
+  );
 
   if (!fs.existsSync(archivo)) {
     return [];
@@ -685,25 +640,18 @@ function obtenerComandosCategoria(
       require.resolve(archivo)
     ];
 
-    const loaded =
-      require(archivo);
+    const modulo = require(archivo);
 
-    const comandos =
-      Array.isArray(loaded)
-        ? loaded
-        : [loaded];
+    if (Array.isArray(modulo)) {
+      return modulo;
+    }
 
-    return comandos
-      .filter(
-        command =>
-          command &&
-          command.data &&
-          command.data.name
-      )
-      .map(
-        command =>
-          command.data.name
-      );
+    if (modulo?.data?.name) {
+      return [modulo];
+    }
+
+    return [];
+
   } catch (error) {
     console.error(
       `❌ Error leyendo categoría ${categoria}:`,
@@ -714,544 +662,735 @@ function obtenerComandosCategoria(
   }
 }
 
-/* =========================================================
+/* =====================================================
    READY
-========================================================= */
+===================================================== */
 
-client.once(
-  "ready",
-  async () => {
-    console.log(
-      "================================="
-    );
+client.once("ready", async () => {
+  console.log("");
+  console.log("=================================");
+  console.log("       DARK FF V1 ONLINE");
+  console.log("=================================");
+  console.log("");
+  console.log(`🤖 Bot: ${client.user.tag}`);
+  console.log(`🆔 ID: ${client.user.id}`);
+  console.log(
+    `🏠 Servidores: ${client.guilds.cache.size}`
+  );
+  console.log(
+    `📦 Comandos: ${client.commands.size}`
+  );
+  console.log("");
 
-    console.log(
-      `🤖 ${client.user.tag}`
-    );
+  client.user.setPresence({
+    activities: [
+      {
+        name: "DARK FF V1",
+        type: 3
+      }
+    ],
+    status: "online"
+  });
 
-    console.log(
-      `🆔 ${client.user.id}`
-    );
+  await registerCommands();
+});
 
-    console.log(
-      `🌐 Servidores: ${client.guilds.cache.size}`
-    );
-
-    console.log(
-      `📦 Comandos: ${client.commands.size}`
-    );
-
-    console.log(
-      "================================="
-    );
-
-    client.user.setPresence({
-      activities: [
-        {
-          name:
-            "/help | DARK FF V1",
-          type: 0
-        }
-      ],
-      status: "online"
-    });
-
-    await registerCommands();
-  }
-);
-
-/* =========================================================
+/* =====================================================
    INTERACCIONES
-========================================================= */
+===================================================== */
 
-client.on(
-  "interactionCreate",
-  async interaction => {
-    try {
+client.on("interactionCreate", async interaction => {
+  try {
 
-      /* =====================================================
-         SLASH COMMANDS
-      ===================================================== */
+    /* =================================================
+       SLASH COMMANDS
+    ================================================= */
 
-      if (
-        interaction.isChatInputCommand()
-      ) {
-        const command =
-          client.commands.get(
-            interaction.commandName
+    if (interaction.isChatInputCommand()) {
+      const command = client.commands.get(
+        interaction.commandName
+      );
+
+      if (!command) {
+        return interaction.reply({
+          content:
+            "❌ Ese comando no está cargado.",
+          ephemeral: true
+        });
+      }
+
+      try {
+        await command.execute(interaction);
+      } catch (error) {
+        console.error(
+          `❌ Error ejecutando /${interaction.commandName}:`,
+          error
+        );
+
+        const mensaje =
+          "❌ Ocurrió un error ejecutando este comando.";
+
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: mensaje,
+            ephemeral: true
+          }).catch(() => {});
+        } else {
+          await interaction.reply({
+            content: mensaje,
+            ephemeral: true
+          }).catch(() => {});
+        }
+      }
+
+      return;
+    }
+
+    /* =================================================
+       BOTÓN CREAR TICKET
+    ================================================= */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === "ticket_create"
+    ) {
+      if (!interaction.guild) {
+        return interaction.reply({
+          content:
+            "❌ Este botón solo funciona dentro de un servidor.",
+          ephemeral: true
+        });
+      }
+
+      const guild = interaction.guild;
+
+      const existente =
+        guild.channels.cache.find(
+          canal =>
+            canal.name ===
+            `ticket-${interaction.user.username
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "")}`
+        );
+
+      if (existente) {
+        return interaction.reply({
+          content:
+            `🎫 Ya tienes un ticket abierto: ${existente}`,
+          ephemeral: true
+        });
+      }
+
+      const categoria =
+        guild.channels.cache.find(
+          canal =>
+            canal.type === ChannelType.GuildCategory &&
+            canal.name === "🎫 TICKETS"
+        );
+
+      let ticketCategory = categoria;
+
+      if (!ticketCategory) {
+        ticketCategory =
+          await guild.channels.create({
+            name: "🎫 TICKETS",
+            type: ChannelType.GuildCategory
+          });
+      }
+
+      const canal =
+        await guild.channels.create({
+          name:
+            `ticket-${interaction.user.username
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "")
+              .slice(0, 20)}`,
+          type: ChannelType.GuildText,
+          parent: ticketCategory.id,
+          permissionOverwrites: [
+            {
+              id: guild.roles.everyone.id,
+              deny: [
+                PermissionsBitField.Flags.ViewChannel
+              ]
+            },
+            {
+              id: interaction.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ReadMessageHistory
+              ]
+            },
+            {
+              id: client.user.id,
+              allow: [
+                PermissionsBitField.Flags.ViewChannel,
+                PermissionsBitField.Flags.SendMessages,
+                PermissionsBitField.Flags.ReadMessageHistory,
+                PermissionsBitField.Flags.ManageChannels
+              ]
+            }
+          ]
+        });
+
+      const embed =
+        new EmbedBuilder()
+          .setTitle("🎫 Ticket creado")
+          .setDescription(
+            `Hola ${interaction.user}, explica aquí tu problema.\n\n` +
+            "Un miembro del staff te atenderá pronto."
+          )
+          .setColor(0x5865f2);
+
+      const cerrar =
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId("ticket_close")
+            .setLabel("Cerrar ticket")
+            .setEmoji("🔒")
+            .setStyle(ButtonStyle.Danger)
+        );
+
+      await canal.send({
+        content:
+          `${interaction.user} 🎫`,
+        embeds: [embed],
+        components: [cerrar]
+      });
+
+      await interaction.reply({
+        content:
+          `✅ Ticket creado: ${canal}`,
+        ephemeral: true
+      });
+
+      return;
+    }
+
+    /* =================================================
+       BOTÓN CERRAR TICKET
+    ================================================= */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === "ticket_close"
+    ) {
+      if (!interaction.channel) return;
+
+      if (!isStaff(interaction)) {
+        return interaction.reply({
+          content:
+            "❌ No tienes permiso para cerrar tickets.",
+          ephemeral: true
+        });
+      }
+
+      await interaction.reply({
+        content:
+          "🔒 Cerrando ticket en 5 segundos..."
+      });
+
+      setTimeout(async () => {
+        await interaction.channel
+          .delete()
+          .catch(() => {});
+      }, 5000);
+
+      return;
+    }
+
+    /* =================================================
+       HELP - CATEGORÍAS
+    ================================================= */
+
+    if (
+      interaction.isStringSelectMenu() &&
+      interaction.customId === "help_category"
+    ) {
+      const categoria =
+        interaction.values[0];
+
+      try {
+        const helpPath =
+          path.join(
+            commandsPath,
+            "utilidades",
+            "help.js"
           );
 
-        if (!command) {
+        if (!fs.existsSync(helpPath)) {
           return interaction.reply({
             content:
-              "❌ Este comando no existe.",
+              "❌ No se encontró el sistema de ayuda.",
             ephemeral: true
           });
         }
 
-        /*
-         * ESTADÍSTICAS
-         */
+        delete require.cache[
+          require.resolve(helpPath)
+        ];
 
-        try {
-          const guildId =
-            interaction.guild?.id;
+        const help = require(helpPath);
 
-          if (guildId) {
-            if (
-              !db.estadisticas[
-                guildId
-              ]
-            ) {
-              db.estadisticas[
-                guildId
-              ] = {
-                mensajes: 0,
-                comandos: 0,
-                miembros: 0,
-                usuarios: {},
-                comandosUsados: {},
-                canales: {},
-                voz: {}
-              };
-            }
+        if (
+          typeof help.crearCategoria !==
+          "function"
+        ) {
+          return interaction.reply({
+            content:
+              "❌ El archivo help.js no tiene crearCategoria().",
+            ephemeral: true
+          });
+        }
 
-            const stats =
-              db.estadisticas[
-                guildId
-              ];
+        const embed =
+          help.crearCategoria(categoria);
 
-            stats.comandos =
-              Number(
-                stats.comandos || 0
-              ) + 1;
+        const componentes = [];
 
-            if (
-              !stats.comandosUsados
-            ) {
-              stats.comandosUsados =
-                {};
-            }
-
-            stats.comandosUsados[
-              interaction.commandName
-            ] =
-              Number(
-                stats.comandosUsados[
-                  interaction.commandName
-                ] || 0
-              ) + 1;
-
-            if (
-              !stats.usuarios
-            ) {
-              stats.usuarios =
-                {};
-            }
-
-            if (
-              !stats.usuarios[
-                interaction.user.id
-              ]
-            ) {
-              stats.usuarios[
-                interaction.user.id
-              ] = {
-                mensajes: 0,
-                comandos: 0
-              };
-            }
-
-            stats.usuarios[
-              interaction.user.id
-            ].comandos =
-              Number(
-                stats.usuarios[
-                  interaction.user.id
-                ].comandos || 0
-              ) + 1;
-
-            save();
-          }
-        } catch (error) {
-          console.error(
-            "❌ Error actualizando estadísticas:",
-            error
+        if (
+          typeof help.crearMenu ===
+          "function"
+        ) {
+          componentes.push(
+            help.crearMenu()
           );
         }
 
-        /*
-         * EJECUTAR COMANDO REAL
-         */
-
-        try {
-          await command.execute(
-            interaction
+        if (
+          typeof help.crearBotones ===
+          "function"
+        ) {
+          componentes.push(
+            help.crearBotones()
           );
-        } catch (error) {
-          console.error(
-            `❌ Error ejecutando /${interaction.commandName}:`,
-            error
-          );
-
-          const mensaje =
-            "❌ Ocurrió un error ejecutando este comando.";
-
-          if (
-            interaction.replied ||
-            interaction.deferred
-          ) {
-            await interaction
-              .editReply({
-                content: mensaje
-              })
-              .catch(() => {});
-          } else {
-            await interaction
-              .reply({
-                content: mensaje,
-                ephemeral: true
-              })
-              .catch(() => {});
-          }
         }
 
-        return;
-      }
+        await interaction.update({
+          embeds: [embed],
+          components: componentes
+        });
 
-      /* =====================================================
-   CREAR TICKET
-===================================================== */
-
-if (
-  interaction.isButton() &&
-  interaction.customId === "ticket_create"
-) {
-  if (!interaction.guild) {
-    return interaction.reply({
-      content:
-        "❌ Este botón solo funciona en servidores.",
-      ephemeral: true
-    });
-  }
-
-  const guild = interaction.guild;
-
-  let category =
-    guild.channels.cache.find(
-      channel =>
-        channel.type === ChannelType.GuildCategory &&
-        channel.name === "🎫 TICKETS"
-    );
-
-  if (!category) {
-    category =
-      await guild.channels.create({
-        name: "🎫 TICKETS",
-        type: ChannelType.GuildCategory
-      });
-  }
-
-  const safeName =
-    interaction.user.username
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "")
-      .slice(0, 15);
-
-  const ticketName = `ticket-${safeName}`;
-
-  const existing =
-    guild.channels.cache.find(
-      channel =>
-        channel.parentId === category.id &&
-        channel.name === ticketName
-    );
-
-  if (existing) {
-    return interaction.reply({
-      content:
-        `❌ Ya tienes un ticket abierto: ${existing}`,
-      ephemeral: true
-    });
-  }
-
-  const channel =
-    await guild.channels.create({
-      name: ticketName,
-      type: ChannelType.GuildText,
-      parent: category.id,
-
-      permissionOverwrites: [
-        {
-          id: guild.roles.everyone.id,
-          deny: ["ViewChannel"]
-        },
-        {
-          id: interaction.user.id,
-          allow: [
-            "ViewChannel",
-            "SendMessages",
-            "ReadMessageHistory"
-          ]
-        }
-      ]
-    });
-
-  const embed =
-    new EmbedBuilder()
-      .setTitle("🎫 Ticket creado")
-      .setDescription(
-        "Explica tu problema y espera a que el equipo te atienda."
-      )
-      .setColor("Blue");
-
-  const row =
-    new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId("ticket_close")
-          .setLabel("Cerrar ticket")
-          .setEmoji("🔒")
-          .setStyle(ButtonStyle.Danger)
-      );
-
-  await channel.send({
-    content:
-      `<@${interaction.user.id}>`,
-    embeds: [embed],
-    components: [row]
-  });
-
-  await interaction.reply({
-    content:
-      `✅ Ticket creado: ${channel}`,
-    ephemeral: true
-  });
-
-  return;
-}
-
-/* =====================================================
-   CERRAR TICKET
-===================================================== */
-
-if (
-  interaction.isButton() &&
-  interaction.customId === "ticket_close"
-) {
-  if (!interaction.channel) {
-    return;
-  }
-
-  const puedeCerrar =
-    isStaff(interaction.member) ||
-    interaction.channel.name?.startsWith("ticket-");
-
-  if (!puedeCerrar) {
-    return interaction.reply({
-      content:
-        "❌ No puedes cerrar este ticket.",
-      ephemeral: true
-    });
-  }
-
-  await interaction.reply(
-    "🔒 Este ticket se cerrará en 5 segundos..."
-  );
-
-  setTimeout(() => {
-    interaction.channel
-      .delete()
-      .catch(() => {});
-  }, 5000);
-
-  return;
-}
-
-/* =====================================================
-   MENÚ /HELP
-===================================================== */
-
-if (
-  interaction.isStringSelectMenu() &&
-  interaction.customId === "help_category"
-) {
-  const categoria =
-    interaction.values?.[0];
-
-  if (!categoria) {
-    return;
-  }
-
-  const comandosCategoria =
-    obtenerComandosCategoria(categoria);
-
-  const embed =
-    new EmbedBuilder()
-      .setTitle(
-        `📚 DARK FF V1 — ${categoria}`
-      )
-      .setDescription(
-        comandosCategoria.length
-          ? comandosCategoria
-              .map(
-                name => `\`/${name}\``
-              )
-              .join("\n")
-          : "No se encontraron comandos."
-      )
-      .setColor("Blue")
-      .setFooter({
-        text:
-          "Escribe / seguido del nombre del comando para utilizarlo."
-      });
-
-  await interaction.update({
-    embeds: [embed]
-  });
-
-  return;
-}
-
-/* =====================================================
-   BOTÓN INICIO DE /HELP
-===================================================== */
-
-if (
-  interaction.isButton() &&
-  interaction.customId === "help_home"
-) {
-  const embed =
-    new EmbedBuilder()
-      .setTitle("📚 DARK FF V1")
-      .setDescription(
-        `Bot multifunción con **${client.commands.size} comandos**.\n\n` +
-        "Selecciona una categoría para ver los comandos disponibles.\n\n" +
-        "Después puedes escribir el comando directamente, por ejemplo `/ban`."
-      )
-      .setColor("Blue");
-
-  try {
-    const helpPath =
-      path.join(
-        commandsPath,
-        "utilidades",
-        "help.js"
-      );
-
-    if (fs.existsSync(helpPath)) {
-      delete require.cache[
-        require.resolve(helpPath)
-      ];
-
-      const help =
-        require(helpPath);
-
-      const components = [];
-
-      if (
-        typeof help.crearMenu ===
-        "function"
-      ) {
-        components.push(
-          help.crearMenu()
+      } catch (error) {
+        console.error(
+          "❌ Error en menú de ayuda:",
+          error
         );
-      }
 
-      if (
-        typeof help.crearBotones ===
-        "function"
-      ) {
-        components.push(
-          help.crearBotones()
-        );
+        if (!interaction.replied) {
+          await interaction.reply({
+            content:
+              "❌ No se pudo abrir esa categoría.",
+            ephemeral: true
+          }).catch(() => {});
+        }
       }
-
-      await interaction.update({
-        embeds: [embed],
-        components
-      });
 
       return;
     }
+
+    /* =================================================
+       HELP - INICIO
+    ================================================= */
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === "help_home"
+    ) {
+      try {
+        const helpPath =
+          path.join(
+            commandsPath,
+            "utilidades",
+            "help.js"
+          );
+
+        if (!fs.existsSync(helpPath)) {
+          return interaction.reply({
+            content:
+              "❌ No se encontró help.js.",
+            ephemeral: true
+          });
+        }
+
+        delete require.cache[
+          require.resolve(helpPath)
+        ];
+
+        const help = require(helpPath);
+
+        if (
+          typeof help.crearInicio !==
+          "function"
+        ) {
+          return interaction.reply({
+            content:
+              "❌ help.js no tiene crearInicio().",
+            ephemeral: true
+          });
+        }
+
+        const componentes = [];
+
+        if (
+          typeof help.crearMenu ===
+          "function"
+        ) {
+          componentes.push(
+            help.crearMenu()
+          );
+        }
+
+        if (
+          typeof help.crearBotones ===
+          "function"
+        ) {
+          componentes.push(
+            help.crearBotones()
+          );
+        }
+
+        await interaction.update({
+          embeds: [
+            help.crearInicio()
+          ],
+          components: componentes
+        });
+
+      } catch (error) {
+        console.error(
+          "❌ Error regresando al inicio de help:",
+          error
+        );
+      }
+
+      return;
+    }
+
   } catch (error) {
     console.error(
-      "❌ Error recuperando menú help:",
+      "❌ Error general de interactionCreate:",
       error
     );
   }
-
-  await interaction.update({
-    embeds: [embed]
-  });
-
-  return;
-}
-
-} catch (error) {
-  console.error(
-    "❌ Error en interactionCreate:",
-    error
-  );
-
-  try {
-    if (
-      !interaction.replied &&
-      !interaction.deferred
-    ) {
-      await interaction.reply({
-        content:
-          "❌ Ocurrió un error.",
-        ephemeral: true
-      });
-    }
-  } catch {}
-}
 });
 
-/* =========================================================
-   SISTEMA DE NIVELES + ESTADÍSTICAS
-========================================================= */
+/* =================================================
+   XP / MENSAJES / ESTADÍSTICAS
+================================================= */
 
-client.on(
-  "messageCreate",
-  async message => {
-    if (!message.guild) {
-      return;
+client.on("messageCreate", async message => {
+  try {
+    if (message.author.bot) return;
+    if (!message.guild) return;
+
+    const guildId = message.guild.id;
+    const userId = message.author.id;
+
+    /* /niveles */
+
+    if (!db.niveles) {
+      db.niveles = {};
     }
 
-    if (message.author.bot) {
+    if (!db.niveles[guildId]) {
+      db.niveles[guildId] = {
+        usuarios: {},
+        configuracion: {
+          xpPorMensaje: 10,
+          xpMinimo: 5,
+          xpMaximo: 15,
+          nivelBase: 100,
+          canal: null,
+          mensajesActivos: true,
+          roles: {}
+        }
+      };
+    }
+
+    const niveles =
+      db.niveles[guildId];
+
+    if (!niveles.usuarios[userId]) {
+      niveles.usuarios[userId] = {
+        xp: 0,
+        nivel: 0,
+        mensajes: 0
+      };
+    }
+
+    const usuario =
+      niveles.usuarios[userId];
+
+    usuario.mensajes++;
+
+    if (
+      niveles.configuracion
+        .mensajesActivos !== false
+    ) {
+      const minimo =
+        Number(
+          niveles.configuracion.xpMinimo
+        ) || 5;
+
+      const maximo =
+        Number(
+          niveles.configuracion.xpMaximo
+        ) || 15;
+
+      const xpGanado =
+        Math.floor(
+          Math.random() *
+            (maximo - minimo + 1)
+        ) + minimo;
+
+      usuario.xp += xpGanado;
+
+      const base =
+        Number(
+          niveles.configuracion.nivelBase
+        ) || 100;
+
+      const nuevoNivel =
+        Math.floor(
+          usuario.xp / base
+        );
+
+      if (
+        nuevoNivel >
+        usuario.nivel
+      ) {
+        usuario.nivel =
+          nuevoNivel;
+
+        const canalId =
+          niveles.configuracion.canal;
+
+        if (canalId) {
+          const canal =
+            message.guild.channels.cache.get(
+              canalId
+            );
+
+          if (canal) {
+            canal.send(
+              `🎉 ${message.author} subió al nivel **${nuevoNivel}**.`
+            ).catch(() => {});
+          }
+        }
+      }
+    }
+
+    /* /estadisticas */
+
+    if (!db.estadisticas) {
+      db.estadisticas = {};
+    }
+
+    if (!db.estadisticas[guildId]) {
+      db.estadisticas[guildId] = {
+        mensajes: 0,
+        comandos: 0,
+        usuarios: {},
+        voz: {}
+      };
+    }
+
+    const stats =
+      db.estadisticas[guildId];
+
+    stats.mensajes++;
+
+    if (!stats.usuarios[userId]) {
+      stats.usuarios[userId] = {
+        mensajes: 0,
+        comandos: 0
+      };
+    }
+
+    stats.usuarios[userId].mensajes++;
+
+    /* /automod */
+
+    if (
+      db.automod &&
+      db.automod[guildId]
+    ) {
+      const config =
+        db.automod[guildId];
+
+      const contenido =
+        message.content || "";
+
+      /* /antilinks */
+
+      if (
+        config.antilinks &&
+        /(https?:\/\/|www\.|discord\.gg\/)/i.test(
+          contenido
+        )
+      ) {
+        if (
+          !message.member?.permissions.has(
+            PermissionsBitField.Flags.ManageMessages
+          )
+        ) {
+          await message.delete().catch(() => {});
+
+          await message.channel.send(
+            `🚫 ${message.author}, los enlaces no están permitidos.`
+          ).then(msg => {
+            setTimeout(
+              () => msg.delete().catch(() => {}),
+              5000
+            );
+          }).catch(() => {});
+
+          return;
+        }
+      }
+
+      /* /antispam */
+
+      if (
+        config.antispam &&
+        contenido.length > 0
+      ) {
+        if (!db._spam) {
+          db._spam = {};
+        }
+
+        if (!db._spam[guildId]) {
+          db._spam[guildId] = {};
+        }
+
+        if (!db._spam[guildId][userId]) {
+          db._spam[guildId][userId] = {
+            mensajes: [],
+            ultimo: 0
+          };
+        }
+
+        const spam =
+          db._spam[guildId][userId];
+
+        const ahora = Date.now();
+
+        spam.mensajes =
+          spam.mensajes.filter(
+            tiempo =>
+              ahora - tiempo < 5000
+          );
+
+        spam.mensajes.push(ahora);
+
+        if (spam.mensajes.length >= 6) {
+          await message.delete().catch(() => {});
+
+          await message.channel.send(
+            `⚠️ ${message.author}, evita enviar tantos mensajes seguidos.`
+          ).then(msg => {
+            setTimeout(
+              () => msg.delete().catch(() => {}),
+              5000
+            );
+          }).catch(() => {});
+        }
+      }
+
+      /* /anticaps */
+
+      if (
+        config.anticaps &&
+        contenido.length >= 8
+      ) {
+        const letras =
+          contenido.replace(
+            /[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g,
+            ""
+          );
+
+        if (letras.length >= 8) {
+          const mayusculas =
+            letras
+              .split("")
+              .filter(
+                letra =>
+                  letra ===
+                  letra.toUpperCase()
+              ).length;
+
+          const porcentaje =
+            mayusculas /
+            letras.length;
+
+          if (porcentaje >= 0.8) {
+            await message.delete().catch(() => {});
+
+            await message.channel.send(
+              `🔠 ${message.author}, evita escribir todo en mayúsculas.`
+            ).then(msg => {
+              setTimeout(
+                () => msg.delete().catch(() => {}),
+                5000
+              );
+            }).catch(() => {});
+          }
+        }
+      }
+    }
+
+    if (
+      stats.mensajes % 10 === 0
+    ) {
+      guardarDatabase();
+    }
+
+  } catch (error) {
+    console.error(
+      "❌ Error en messageCreate:",
+      error
+    );
+  }
+});
+
+/* =================================================
+   ESTADÍSTICAS DE COMANDOS
+================================================= */
+
+client.on(
+  "interactionCreate",
+  async interaction => {
+    if (!interaction.isChatInputCommand()) {
       return;
     }
 
     try {
-      const guildId =
-        message.guild.id;
+      if (!db.estadisticas) {
+        db.estadisticas = {};
+      }
 
-      const userId =
-        message.author.id;
-
-      /* ===================================================
-         ESTADÍSTICAS
-      =================================================== */
-
-      if (!db.estadisticas[guildId]) {
-        db.estadisticas[guildId] = {
+      if (!db.estadisticas[interaction.guildId]) {
+        db.estadisticas[
+          interaction.guildId
+        ] = {
           mensajes: 0,
           comandos: 0,
-          miembros: 0,
           usuarios: {},
-          comandosUsados: {},
-          canales: {},
           voz: {}
         };
       }
 
       const stats =
-        db.estadisticas[guildId];
+        db.estadisticas[
+          interaction.guildId
+        ];
 
-      stats.mensajes =
-        Number(stats.mensajes || 0) + 1;
+      stats.comandos++;
+
+      const userId =
+        interaction.user.id;
 
       if (!stats.usuarios[userId]) {
         stats.usuarios[userId] = {
@@ -1260,158 +1399,20 @@ client.on(
         };
       }
 
-      stats.usuarios[userId].mensajes =
-        Number(
-          stats.usuarios[userId].mensajes || 0
-        ) + 1;
-
-      if (!stats.canales[message.channel.id]) {
-        stats.canales[message.channel.id] = 0;
-      }
-
-      stats.canales[message.channel.id]++;
-
-      /* ===================================================
-         NIVELES
-      =================================================== */
-
-      if (!db.niveles[guildId]) {
-        db.niveles[guildId] = {
-          usuarios: {},
-          configuracion: {
-            xpPorMensaje: 10,
-            xpMinimo: 5,
-            xpMaximo: 15,
-            nivelBase: 100,
-            canal: null,
-            mensajesActivos: true,
-            roles: {}
-          }
-        };
-      }
-
-      const niveles =
-        db.niveles[guildId];
-
-      if (
-        niveles.configuracion &&
-        niveles.configuracion.mensajesActivos !== false
-      ) {
-        if (!niveles.usuarios[userId]) {
-          niveles.usuarios[userId] = {
-            xp: 0,
-            nivel: 0,
-            mensajes: 0
-          };
-        }
-
-        const usuario =
-          niveles.usuarios[userId];
-
-        usuario.mensajes =
-          Number(usuario.mensajes || 0) + 1;
-
-        const minimo =
-          Number(
-            niveles.configuracion.xpMinimo || 5
-          );
-
-        const maximo =
-          Number(
-            niveles.configuracion.xpMaximo || 15
-          );
-
-        const xpGanado =
-          Math.floor(
-            Math.random() *
-              (maximo - minimo + 1)
-          ) + minimo;
-
-        usuario.xp =
-          Number(usuario.xp || 0) +
-          xpGanado;
-
-        const base =
-          Number(
-            niveles.configuracion.nivelBase || 100
-          );
-
-        const nivelAnterior =
-          Number(usuario.nivel || 0);
-
-        const nuevoNivel =
-          Math.floor(
-            usuario.xp / base
-          );
-
-        usuario.nivel =
-          nuevoNivel;
-
-        /* ===============================================
-           SUBIDA DE NIVEL
-        =============================================== */
-
-        if (
-          nuevoNivel >
-          nivelAnterior
-        ) {
-          const canalNivel =
-            niveles.configuracion.canal;
-
-          const canal =
-            canalNivel
-              ? message.guild.channels.cache.get(
-                  canalNivel
-                )
-              : message.channel;
-
-          if (canal?.isTextBased()) {
-            canal
-              .send(
-                `🎉 <@${userId}> subió al **nivel ${nuevoNivel}**!`
-              )
-              .catch(() => {});
-          }
-
-          /* =============================================
-             ROLES POR NIVEL
-          ============================================= */
-
-          const roles =
-            niveles.configuracion.roles || {};
-
-          const roleId =
-            roles[String(nuevoNivel)];
-
-          if (roleId) {
-            const role =
-              message.guild.roles.cache.get(
-                roleId
-              );
-
-            if (role) {
-              message.member.roles
-                .add(role)
-                .catch(() => {});
-            }
-          }
-        }
-      }
-
-      save();
+      stats.usuarios[userId].comandos++;
 
     } catch (error) {
       console.error(
-        "❌ Error en messageCreate:",
+        "❌ Error registrando estadísticas:",
         error
       );
     }
   }
 );
 
-/* =========================================================
+/* =================================================
    MIEMBRO ENTRA
-========================================================= */
+================================================= */
 
 client.on(
   "guildMemberAdd",
@@ -1420,23 +1421,43 @@ client.on(
       const guildId =
         member.guild.id;
 
-      if (!db.estadisticas[guildId]) {
-        db.estadisticas[guildId] = {
-          mensajes: 0,
-          comandos: 0,
-          miembros: 0,
-          usuarios: {},
-          comandosUsados: {},
-          canales: {},
-          voz: {}
-        };
+      if (!db.logs) {
+        db.logs = {};
       }
 
-      db.estadisticas[guildId].miembros =
-        member.guild.memberCount;
+      if (
+        db.logs[guildId] &&
+        db.logs[guildId].member
+      ) {
+        const canalId =
+          db.logs[guildId].member;
 
-      save();
+        const canal =
+          member.guild.channels.cache.get(
+            canalId
+          );
 
+        if (canal) {
+          const embed =
+            new EmbedBuilder()
+              .setTitle("📥 Miembro entró")
+              .setDescription(
+                `${member.user} entró al servidor.`
+              )
+              .addFields({
+                name: "Usuario",
+                value:
+                  `${member.user.tag}`,
+                inline: true
+              })
+              .setColor(0x57f287)
+              .setTimestamp();
+
+          await canal.send({
+            embeds: [embed]
+          });
+        }
+      }
     } catch (error) {
       console.error(
         "❌ Error guildMemberAdd:",
@@ -1446,9 +1467,9 @@ client.on(
   }
 );
 
-/* =========================================================
+/* =================================================
    MIEMBRO SALE
-========================================================= */
+================================================= */
 
 client.on(
   "guildMemberRemove",
@@ -1457,13 +1478,37 @@ client.on(
       const guildId =
         member.guild.id;
 
-      if (db.estadisticas[guildId]) {
-        db.estadisticas[guildId].miembros =
-          member.guild.memberCount;
-
-        save();
+      if (!db.logs) {
+        db.logs = {};
       }
 
+      if (
+        db.logs[guildId] &&
+        db.logs[guildId].member
+      ) {
+        const canalId =
+          db.logs[guildId].member;
+
+        const canal =
+          member.guild.channels.cache.get(
+            canalId
+          );
+
+        if (canal) {
+          const embed =
+            new EmbedBuilder()
+              .setTitle("📤 Miembro salió")
+              .setDescription(
+                `${member.user.tag} salió del servidor.`
+              )
+              .setColor(0xed4245)
+              .setTimestamp();
+
+          await canal.send({
+            embeds: [embed]
+          });
+        }
+      }
     } catch (error) {
       console.error(
         "❌ Error guildMemberRemove:",
@@ -1473,28 +1518,31 @@ client.on(
   }
 );
 
-/* =========================================================
-   VOZ / ESTADÍSTICAS
-========================================================= */
+/* =================================================
+   VOZ
+================================================= */
 
 client.on(
   "voiceStateUpdate",
   async (oldState, newState) => {
     try {
+      if (!newState.guild) return;
+
       const guildId =
         newState.guild.id;
 
       const userId =
         newState.id;
 
+      if (!db.estadisticas) {
+        db.estadisticas = {};
+      }
+
       if (!db.estadisticas[guildId]) {
         db.estadisticas[guildId] = {
           mensajes: 0,
           comandos: 0,
-          miembros: 0,
           usuarios: {},
-          comandosUsados: {},
-          canales: {},
           voz: {}
         };
       }
@@ -1508,49 +1556,45 @@ client.on(
 
       if (!stats.voz[userId]) {
         stats.voz[userId] = {
-          entradas: 0,
-          salidas: 0,
-          canal: null
+          conectado: false,
+          entrada: null,
+          segundos: 0
         };
       }
 
-      /* Entró a voz */
+      const usuario =
+        stats.voz[userId];
+
+      /* /voice join */
 
       if (
         !oldState.channelId &&
         newState.channelId
       ) {
-        stats.voz[userId].entradas++;
-
-        stats.voz[userId].canal =
-          newState.channelId;
+        usuario.conectado = true;
+        usuario.entrada = Date.now();
       }
 
-      /* Salió de voz */
+      /* /voice leave */
 
       if (
         oldState.channelId &&
         !newState.channelId
       ) {
-        stats.voz[userId].salidas++;
+        if (usuario.entrada) {
+          const diferencia =
+            Date.now() -
+            usuario.entrada;
 
-        stats.voz[userId].canal =
-          null;
+          usuario.segundos +=
+            Math.floor(
+              diferencia / 1000
+            );
+        }
+
+        usuario.conectado = false;
+        usuario.entrada = null;
       }
-
-      /* Cambió de canal */
-
-      if (
-        oldState.channelId &&
-        newState.channelId &&
-        oldState.channelId !==
-          newState.channelId
-      ) {
-        stats.voz[userId].canal =
-          newState.channelId;
-      }
-
-      save();
 
     } catch (error) {
       console.error(
@@ -1561,91 +1605,82 @@ client.on(
   }
 );
 
-/* =========================================================
-   LOGS BÁSICOS
-========================================================= */
-
-async function enviarLog(
-  guild,
-  tipo,
-  contenido
-) {
-  try {
-    if (!db.logs) {
-      db.logs = {};
-    }
-
-    const configuracion =
-      db.logs[guild.id];
-
-    if (!configuracion) {
-      return;
-    }
-
-    const canalId =
-      configuracion[tipo] ||
-      configuracion.canal;
-
-    if (!canalId) {
-      return;
-    }
-
-    const canal =
-      guild.channels.cache.get(
-        canalId
-      );
-
-    if (!canal?.isTextBased()) {
-      return;
-    }
-
-    await canal.send({
-      content: contenido
-    });
-
-  } catch {}
-}
-
-/* =========================================================
-   MENSAJE ELIMINADO
-========================================================= */
+/* =================================================
+   LOGS - MENSAJE ELIMINADO
+================================================= */
 
 client.on(
   "messageDelete",
   async message => {
-    if (
-      !message.guild ||
-      message.author?.bot
-    ) {
-      return;
+    try {
+      if (!message.guild) return;
+
+      const guildId =
+        message.guild.id;
+
+      if (!db.logs) return;
+      if (!db.logs[guildId]) return;
+
+      const canalId =
+        db.logs[guildId].message;
+
+      if (!canalId) return;
+
+      const canal =
+        message.guild.channels.cache.get(
+          canalId
+        );
+
+      if (!canal) return;
+
+      const embed =
+        new EmbedBuilder()
+          .setTitle("🗑️ Mensaje eliminado")
+          .setColor(0xed4245)
+          .setTimestamp();
+
+      if (message.author) {
+        embed.addFields({
+          name: "Autor",
+          value:
+            `${message.author.tag}`,
+          inline: true
+        });
+      }
+
+      if (message.channel) {
+        embed.addFields({
+          name: "Canal",
+          value:
+            `${message.channel}`,
+          inline: true
+        });
+      }
+
+      if (message.content) {
+        embed.addFields({
+          name: "Contenido",
+          value:
+            message.content.slice(0, 1024)
+        });
+      }
+
+      await canal.send({
+        embeds: [embed]
+      });
+
+    } catch (error) {
+      console.error(
+        "❌ Error messageDelete:",
+        error
+      );
     }
-
-    await enviarLog(
-      message.guild,
-      "mensajes",
-      `🗑️ Mensaje eliminado de <#${message.channel.id}> de ${message.author}.`
-    );
   }
 );
 
-/* =========================================================
-   BAN
-========================================================= */
-
-client.on(
-  "guildBanAdd",
-  async ban => {
-    await enviarLog(
-      ban.guild,
-      "bans",
-      `🔨 ${ban.user.tag} fue baneado.`
-    );
-  }
-);
-
-/* =========================================================
-   SERVIDOR HTTP PARA RAILWAY
-========================================================= */
+/* =================================================
+   HTTP SERVER - RAILWAY
+================================================= */
 
 const server =
   http.createServer(
@@ -1659,7 +1694,7 @@ const server =
       );
 
       res.end(
-        "DARK FF V1 está funcionando correctamente."
+        "DARK FF V1 está online."
       );
     }
   );
@@ -1674,20 +1709,13 @@ server.listen(
   }
 );
 
-/* =========================================================
+/* =================================================
    LOGIN
-========================================================= */
+================================================= */
 
-client
-  .login(TOKEN)
-  .then(() => {
-    console.log(
-      "🔑 Conectando con Discord..."
-    );
-  })
-  .catch(error => {
-    console.error(
-      "❌ Error iniciando sesión en Discord:",
-      error
-    );
-  });
+client.login(TOKEN).catch(error => {
+  console.error(
+    "❌ No se pudo iniciar sesión:",
+    error
+  );
+});
