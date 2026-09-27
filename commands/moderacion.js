@@ -1,955 +1,336 @@
-const {
-  SlashCommandBuilder,
-  PermissionFlagsBits,
-  EmbedBuilder
-} = require("discord.js");
-
-const commands = [];
-
-/* =========================================================
-   /ban
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("ban")
-    .setDescription("Banea a un miembro del servidor.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario que quieres banear")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("razon")
-        .setDescription("Razón del baneo")
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-    const razon =
-      interaction.options.getString("razon") || "Sin razón especificada";
-
-    if (usuario.id === interaction.user.id) {
-      return interaction.reply({
-        content: "❌ No puedes banearte a ti mismo.",
-        ephemeral: true
-      });
-    }
-
-    const miembro = await interaction.guild.members
-      .fetch(usuario.id)
-      .catch(() => null);
-
-    if (!miembro) {
-      return interaction.reply({
-        content: "❌ Ese usuario no está en el servidor.",
-        ephemeral: true
-      });
-    }
-
-    if (!miembro.bannable) {
-      return interaction.reply({
-        content: "❌ No puedo banear a ese usuario.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.ban({ reason: razon });
-
-    return interaction.reply(
-      `🔨 **${usuario.tag}** fue baneado.\n📝 Razón: ${razon}`
-    );
-  }
-});
-
-
-/* =========================================================
-   /unban
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("unban")
-    .setDescription("Desbanea a un usuario.")
-    .addStringOption(option =>
-      option
-        .setName("id")
-        .setDescription("ID del usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-
-  async execute(interaction) {
-    const id = interaction.options.getString("id");
-
-    try {
-      await interaction.guild.members.unban(id);
-
-      return interaction.reply(
-        `✅ El usuario con ID **${id}** fue desbaneado.`
-      );
-    } catch {
-      return interaction.reply({
-        content: "❌ No encontré un baneo para ese ID.",
-        ephemeral: true
-      });
-    }
-  }
-});
-
-
-/* =========================================================
-   /kick
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("kick")
-    .setDescription("Expulsa a un miembro.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario que quieres expulsar")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("razon")
-        .setDescription("Razón de la expulsión")
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-    const razon =
-      interaction.options.getString("razon") || "Sin razón especificada";
-
-    const miembro = await interaction.guild.members
-      .fetch(usuario.id)
-      .catch(() => null);
-
-    if (!miembro) {
-      return interaction.reply({
-        content: "❌ Ese usuario no está en el servidor.",
-        ephemeral: true
-      });
-    }
-
-    if (!miembro.kickable) {
-      return interaction.reply({
-        content: "❌ No puedo expulsar a ese usuario.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.kick(razon);
-
-    return interaction.reply(
-      `👢 **${usuario.tag}** fue expulsado.\n📝 Razón: ${razon}`
-    );
-  }
-});
-
-
-/* =========================================================
-   /timeout
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("timeout")
-    .setDescription("Aplica un timeout a un miembro.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .addIntegerOption(option =>
-      option
-        .setName("minutos")
-        .setDescription("Duración en minutos")
-        .setMinValue(1)
-        .setMaxValue(40320)
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("razon")
-        .setDescription("Razón")
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-    const minutos = interaction.options.getInteger("minutos");
-    const razon =
-      interaction.options.getString("razon") || "Sin razón especificada";
-
-    const miembro = await interaction.guild.members
-      .fetch(usuario.id)
-      .catch(() => null);
-
-    if (!miembro || !miembro.moderatable) {
-      return interaction.reply({
-        content: "❌ No puedo aplicar timeout a ese usuario.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.timeout(minutos * 60 * 1000, razon);
-
-    return interaction.reply(
-      `🔇 **${usuario.tag}** recibió timeout durante **${minutos} minutos**.\n📝 Razón: ${razon}`
-    );
-  }
-});
-
-
-/* =========================================================
-   /untimeout
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("untimeout")
-    .setDescription("Quita el timeout a un miembro.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-
-    const miembro = await interaction.guild.members
-      .fetch(usuario.id)
-      .catch(() => null);
-
-    if (!miembro) {
-      return interaction.reply({
-        content: "❌ Usuario no encontrado.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.timeout(null);
-
-    return interaction.reply(
-      `🔊 Se quitó el timeout a **${usuario.tag}**.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /warn
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("warn")
-    .setDescription("Advierte a un miembro.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("razon")
-        .setDescription("Razón de la advertencia")
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-    const razon =
-      interaction.options.getString("razon") || "Sin razón especificada";
-
-    return interaction.reply(
-      `⚠️ **${usuario.tag}** recibió una advertencia.\n📝 Razón: ${razon}`
-    );
-  }
-});
-
-
-/* =========================================================
-   /unwarn
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("unwarn")
-    .setDescription("Retira una advertencia.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-
-    return interaction.reply(
-      `✅ Se retiró una advertencia de **${usuario.tag}**.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /warns
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("warns")
-    .setDescription("Muestra las advertencias de un usuario.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario = interaction.options.getUser("usuario");
-
-    const embed = new EmbedBuilder()
-      .setTitle("⚠️ Advertencias")
-      .setColor(0xffcc00)
-      .setDescription(`Advertencias de ${usuario}`)
-      .addFields({
-        name: "📋 Total",
-        value: "0 advertencias"
-      })
-      .setTimestamp();
-
-    return interaction.reply({
-      embeds: [embed]
-    });
-  }
-});
-
-
-/* =========================================================
-   /clear
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("clear")
-    .setDescription("Elimina mensajes del canal.")
-    .addIntegerOption(option =>
-      option
-        .setName("cantidad")
-        .setDescription("Cantidad de mensajes")
-        .setMinValue(1)
-        .setMaxValue(100)
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
-
-  async execute(interaction) {
-    try {
-      const cantidad =
-        interaction.options.getInteger("cantidad");
-
-      const mensajes =
-        await interaction.channel.bulkDelete(cantidad, true);
-
-      return interaction.reply({
-        content:
-          `🧹 Se eliminaron **${mensajes.size} mensajes**.`,
-        ephemeral: true
-      });
-    } catch (error) {
-      console.error("Error en /clear:", error);
-
-      return interaction.reply({
-        content: "❌ No pude eliminar los mensajes.",
-        ephemeral: true
-      });
-    }
-  }
-});
-
-
-/* =========================================================
-   /slowmode
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("slowmode")
-    .setDescription("Configura el modo lento del canal.")
-    .addIntegerOption(option =>
-      option
-        .setName("segundos")
-        .setDescription("Segundos entre mensajes")
-        .setMinValue(0)
-        .setMaxValue(21600)
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
-  async execute(interaction) {
-    const segundos =
-      interaction.options.getInteger("segundos");
-
-    await interaction.channel.setRateLimitPerUser(segundos);
-
-    return interaction.reply(
-      `🐌 Slowmode establecido en **${segundos} segundos**.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /lock
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("lock")
-    .setDescription("Bloquea el canal.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
-  async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(
-      interaction.guild.roles.everyone,
-      {
-        SendMessages: false
-      }
-    );
-
-    return interaction.reply("🔒 Canal bloqueado.");
-  }
-});
-
-
-/* =========================================================
-   /unlock
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("unlock")
-    .setDescription("Desbloquea el canal.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
-  async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(
-      interaction.guild.roles.everyone,
-      {
-        SendMessages: null
-      }
-    );
-
-    return interaction.reply("🔓 Canal desbloqueado.");
-  }
-});
-
-
-/* =========================================================
-   /lockchannel
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("lockchannel")
-    .setDescription("Bloquea el canal actual.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
-  async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(
-      interaction.guild.roles.everyone,
-      {
-        SendMessages: false
-      }
-    );
-
-    return interaction.reply("🔐 Canal bloqueado.");
-  }
-});
-
-
-/* =========================================================
-   /unlockchannel
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("unlockchannel")
-    .setDescription("Desbloquea el canal actual.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
-  async execute(interaction) {
-    await interaction.channel.permissionOverwrites.edit(
-      interaction.guild.roles.everyone,
-      {
-        SendMessages: null
-      }
-    );
-
-    return interaction.reply("🔓 Canal desbloqueado.");
-  }
-});
-
-
-/* =========================================================
-   /mute
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("mute")
-    .setDescription("Silencia temporalmente a un usuario.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .addIntegerOption(option =>
-      option
-        .setName("minutos")
-        .setDescription("Duración en minutos")
-        .setMinValue(1)
-        .setMaxValue(40320)
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const minutos =
-      interaction.options.getInteger("minutos");
-
-    const miembro =
-      await interaction.guild.members
-        .fetch(usuario.id)
-        .catch(() => null);
-
-    if (!miembro || !miembro.moderatable) {
-      return interaction.reply({
-        content: "❌ No puedo silenciar a ese usuario.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.timeout(
-      minutos * 60 * 1000,
-      "Mute de moderación"
-    );
-
-    return interaction.reply(
-      `🔇 **${usuario.tag}** fue silenciado durante **${minutos} minutos**.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /unmute
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("unmute")
-    .setDescription("Quita el silencio a un usuario.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const miembro =
-      await interaction.guild.members
-        .fetch(usuario.id)
-        .catch(() => null);
-
-    if (!miembro) {
-      return interaction.reply({
-        content: "❌ Usuario no encontrado.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.timeout(null);
-
-    return interaction.reply(
-      `🔊 **${usuario.tag}** ya puede hablar nuevamente.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /deafen
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("deafen")
-    .setDescription("Ensordece a un usuario en voz.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.DeafenMembers),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const miembro =
-      await interaction.guild.members
-        .fetch(usuario.id)
-        .catch(() => null);
-
-    if (!miembro || !miembro.voice.channel) {
-      return interaction.reply({
-        content: "❌ El usuario no está en un canal de voz.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.voice.setDeaf(true);
-
-    return interaction.reply(
-      `🔇 **${usuario.tag}** fue ensordecido.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /undeafen
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("undeafen")
-    .setDescription("Quita el ensordecimiento.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.DeafenMembers),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const miembro =
-      await interaction.guild.members
-        .fetch(usuario.id)
-        .catch(() => null);
-
-    if (!miembro || !miembro.voice.channel) {
-      return interaction.reply({
-        content: "❌ El usuario no está en un canal de voz.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.voice.setDeaf(false);
-
-    return interaction.reply(
-      `🔊 **${usuario.tag}** puede escuchar nuevamente.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /nickname
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("nickname")
-    .setDescription("Cambia el apodo de un miembro.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("nombre")
-        .setDescription("Nuevo apodo")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const nombre =
-      interaction.options.getString("nombre");
-
-    const miembro =
-      await interaction.guild.members
-        .fetch(usuario.id)
-        .catch(() => null);
-
-    if (!miembro || !miembro.manageable) {
-      return interaction.reply({
-        content: "❌ No puedo cambiar el apodo de ese usuario.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.setNickname(nombre);
-
-    return interaction.reply(
-      `✏️ Apodo de **${usuario.tag}** cambiado a **${nombre}**.`
-    );
-  }
-});
-
-
-/* =========================================================
-   /resetnickname
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("resetnickname")
-    .setDescription("Restablece el apodo.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const miembro =
-      await interaction.guild.members
-        .fetch(usuario.id)
-        .catch(() => null);
-
-    if (!miembro || !miembro.manageable) {
-      return interaction.reply({
-        content: "❌ No puedo modificar ese usuario.",
-        ephemeral: true
-      });
-    }
-
-    await miembro.setNickname(null);
-
-    return interaction.reply(
-      `🔄 Apodo de **${usuario.tag}** restablecido.`
-    );
-  }
-});
-
-/* =========================================================
-   /massban
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("massban")
-    .setDescription("Banea varios usuarios por ID.")
-    .addStringOption(option =>
-      option
-        .setName("ids")
-        .setDescription("IDs separados por espacios")
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
-        .setName("razon")
-        .setDescription("Razón del baneo")
-        .setRequired(false)
-    )
-    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-
-  async execute(interaction) {
-    const idsTexto =
-      interaction.options.getString("ids");
-
-    const razon =
-      interaction.options.getString("razon") ||
-      "Baneo múltiple";
-
-    const ids = idsTexto
-      .split(/[\s,]+/)
-      .filter(Boolean)
-      .slice(0, 20);
-
-    let exitos = 0;
-    let fallidos = 0;
-
-    for (const id of ids) {
-      try {
-        await interaction.guild.members.ban(id, {
-          reason: razon
-        });
-
-        exitos++;
-      } catch {
-        fallidos++;
-      }
-    }
-
-    return interaction.reply(
-      `🔨 **MassBan terminado**\n\n` +
-      `✅ Baneados: **${exitos}**\n` +
-      `❌ Fallidos: **${fallidos}**`
-    );
-  }
-});
-
-
-/* =========================================================
-   /history
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("history")
-    .setDescription("Muestra el historial básico de moderación.")
-    .addUserOption(option =>
-      option
-        .setName("usuario")
-        .setDescription("Usuario")
-        .setRequired(true)
-    )
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ModerateMembers
-    ),
-
-  async execute(interaction) {
-    const usuario =
-      interaction.options.getUser("usuario");
-
-    const embed = new EmbedBuilder()
-      .setTitle("📋 Historial de moderación")
-      .setColor(0x5865f2)
-      .setThumbnail(usuario.displayAvatarURL())
-      .addFields(
-        {
-          name: "👤 Usuario",
-          value: `${usuario}`,
-          inline: true
-        },
-        {
-          name: "🆔 ID",
-          value: usuario.id,
-          inline: true
-        },
-        {
-          name: "⚠️ Advertencias",
-          value: "0",
-          inline: true
-        },
-        {
-          name: "🔨 Sanciones",
-          value: "0",
-          inline: true
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, time } = require('discord.js');
+
+const ms = require('ms'); // npm i ms
+
+function logMod(guild, embed) {
+    const db = JSON.parse(require('fs').readFileSync('./database.json'));
+    if (!db.logs[guild.id]) db.logs[guild.id] = [];
+    db.logs[guild.id].push({ date: Date.now(), embed: embed.toJSON() });
+    require('fs').writeFileSync('./database.json', JSON.stringify(db, null, 2));
+}
+
+module.exports = [
+    // 1. BAN
+    {
+        data: new SlashCommandBuilder()
+           .setName('ban')
+           .setDescription('Banea a un usuario del servidor')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario a banear').setRequired(true))
+           .addStringOption(o => o.setName('razon').setDescription('Razón').setRequired(false))
+           .addIntegerOption(o => o.setName('dias').setDescription('Borrar mensajes de los últimos X días').setMaxValue(7).setRequired(false))
+           .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+        async execute(interaction) {
+            const user = interaction.options.getUser('usuario');
+            const razon = interaction.options.getString('razon') || 'No especificada';
+            const dias = interaction.options.getInteger('dias') || 0;
+            const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+
+            if (member && member.roles.highest.position >= interaction.member.roles.highest.position)
+                return interaction.reply({ content: '❌ No puedes banear a alguien con rol igual o superior', ephemeral: true });
+
+            await interaction.guild.members.ban(user, { reason: razon, deleteMessageDays: dias });
+
+            const embed = new EmbedBuilder().setTitle('🔨 Baneo').setDescription(`${user} fue baneado\n**Razón:** ${razon}`).setColor(0xFF0000);
+            logMod(interaction.guild, embed);
+            await interaction.reply({ embeds: [embed] });
         }
-      )
-      .setTimestamp();
+    },
 
-    return interaction.reply({
-      embeds: [embed]
-    });
-  }
-});
-
-
-/* =========================================================
-   /modlog
-========================================================= */
-
-commands.push({
-  data: new SlashCommandBuilder()
-    .setName("modlog")
-    .setDescription("Consulta el registro de moderación.")
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ViewAuditLog
-    ),
-
-  async execute(interaction) {
-    const embed = new EmbedBuilder()
-      .setTitle("📑 Registro de moderación")
-      .setColor(0x5865f2)
-      .setDescription(
-        "Información del sistema de moderación de DARK FF V1."
-      )
-      .addFields(
-        {
-          name: "🔨 Baneos",
-          value: "Sistema preparado",
-          inline: true
-        },
-        {
-          name: "👢 Expulsiones",
-          value: "Sistema preparado",
-          inline: true
-        },
-        {
-          name: "⚠️ Advertencias",
-          value: "Sistema preparado",
-          inline: true
-        },
-        {
-          name: "🔇 Timeouts",
-          value: "Sistema preparado",
-          inline: true
+    // 2. UNBAN
+    {
+        data: new SlashCommandBuilder()
+           .setName('unban')
+           .setDescription('Desbanea a un usuario')
+           .addStringOption(o => o.setName('id').setDescription('ID del usuario').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
+        async execute(interaction) {
+            const id = interaction.options.getString('id');
+            await interaction.guild.members.unban(id);
+            await interaction.reply(`✅ Usuario \`${id}\` desbaneado`);
         }
-      )
-      .setTimestamp();
+    },
 
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
-  }
-});
+    // 3. KICK
+    {
+        data: new SlashCommandBuilder()
+           .setName('kick')
+           .setDescription('Expulsa a un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario a expulsar').setRequired(true))
+           .addStringOption(o => o.setName('razon').setDescription('Razón').setRequired(false))
+           .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            const razon = interaction.options.getString('razon') || 'No especificada';
+            if (member.roles.highest.position >= interaction.member.roles.highest.position)
+                return interaction.reply({ content: '❌ No puedes expulsar a alguien con rol igual o superior', ephemeral: true });
 
+            await member.kick(razon);
+            await interaction.reply(`✅ ${member.user.tag} expulsado. **Razón:** ${razon}`);
+        }
+    },
 
-/* =========================================================
-   EXPORTAR TODOS LOS COMANDOS
-========================================================= */
+    // 4. TIMEOUT
+    {
+        data: new SlashCommandBuilder()
+           .setName('timeout')
+           .setDescription('Silencia temporalmente a un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .addStringOption(o => o.setName('tiempo').setDescription('Ej: 10m, 1h, 1d').setRequired(true))
+           .addStringOption(o => o.setName('razon').setDescription('Razón').setRequired(false))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            const tiempo = interaction.options.getString('tiempo');
+            const razon = interaction.options.getString('razon') || 'No especificada';
+            const duration = ms(tiempo);
 
-module.exports = commands;
+            if (!duration) return interaction.reply({ content: '❌ Tiempo inválido. Ej: 10m 1h 1d', ephemeral: true });
+            await member.timeout(duration, razon);
+            await interaction.reply(`✅ ${member} en timeout por \`${tiempo}\`. **Razón:** ${razon}`);
+        }
+    },
+
+    // 5. UNTIMEOUT
+    {
+        data: new SlashCommandBuilder()
+           .setName('untimeout')
+           .setDescription('Quita el timeout a un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            await member.timeout(null);
+            await interaction.reply(`✅ Timeout removido a ${member}`);
+        }
+    },
+
+    // 6. WARN
+    {
+        data: new SlashCommandBuilder()
+           .setName('warn')
+           .setDescription('Advierte a un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .addStringOption(o => o.setName('razon').setDescription('Razón').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const user = interaction.options.getUser('usuario');
+            const razon = interaction.options.getString('razon');
+            const db = JSON.parse(require('fs').readFileSync('./database.json'));
+            if (!db.economia[user.id]) db.economia[user.id] = { warns: [] };
+            db.economia[user.id].warns.push({ razon, mod: interaction.user.id, date: Date.now() });
+            require('fs').writeFileSync('./database.json', JSON.stringify(db, null, 2));
+            await interaction.reply(`⚠️ ${user} ha recibido una advertencia. **Razón:** ${razon}`);
+        }
+    },
+
+    // 7. UNWARN
+    {
+        data: new SlashCommandBuilder()
+           .setName('unwarn')
+           .setDescription('Elimina una advertencia')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .addIntegerOption(o => o.setName('numero').setDescription('Nº de advertencia').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const user = interaction.options.getUser('usuario');
+            const num = interaction.options.getInteger('numero') - 1;
+            const db = JSON.parse(require('fs').readFileSync('./database.json'));
+            if (!db.economia[user.id]?.warns[num]) return interaction.reply({ content: '❌ Esa advertencia no existe', ephemeral: true });
+            db.economia[user.id].warns.splice(num, 1);
+            require('fs').writeFileSync('./database.json', JSON.stringify(db, null, 2));
+            await interaction.reply(`✅ Advertencia #${num+1} eliminada de ${user}`);
+        }
+    },
+
+    // 8. WARNS
+    {
+        data: new SlashCommandBuilder()
+           .setName('warns')
+           .setDescription('Ver advertencias de un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true)),
+        async execute(interaction) {
+            const user = interaction.options.getUser('usuario');
+            const db = JSON.parse(require('fs').readFileSync('./database.json'));
+            const warns = db.economia[user.id]?.warns || [];
+            if (warns.length === 0) return interaction.reply(`${user} no tiene advertencias`);
+
+            const embed = new EmbedBuilder().setTitle(`⚠️ Advertencias de ${user.tag}`).setColor(0xFFFF00);
+            warns.forEach((w, i) => embed.addFields({ name: `#${i+1}`, value: `**Razón:** ${w.razon}\n**Mod:** <@${w.mod}>\n**Fecha:** ${time(new Date(w.date), 'R')}` }));
+            await interaction.reply({ embeds: [embed] });
+        }
+    },
+
+    // 9. CLEAR
+    {
+        data: new SlashCommandBuilder()
+           .setName('clear')
+           .setDescription('Borra mensajes')
+           .addIntegerOption(o => o.setName('cantidad').setDescription('1-100').setRequired(true).setMinValue(1).setMaxValue(100))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+        async execute(interaction) {
+            const amount = interaction.options.getInteger('cantidad');
+            await interaction.channel.bulkDelete(amount, true);
+            await interaction.reply({ content: `✅ ${amount} mensajes eliminados`, ephemeral: true });
+        }
+    },
+
+    // 10. PURGE USER
+    {
+        data: new SlashCommandBuilder()
+           .setName('purge')
+           .setDescription('Borra mensajes de un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .addIntegerOption(o => o.setName('cantidad').setDescription('1-100').setRequired(true).setMinValue(1).setMaxValue(100))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+        async execute(interaction) {
+            const user = interaction.options.getUser('usuario');
+            const amount = interaction.options.getInteger('cantidad');
+            const messages = await interaction.channel.messages.fetch({ limit: amount });
+            const toDelete = messages.filter(m => m.author.id === user.id);
+            await interaction.channel.bulkDelete(toDelete);
+            await interaction.reply({ content: `✅ ${toDelete.size} mensajes de ${user} eliminados`, ephemeral: true });
+        }
+    },
+
+    // 11. SLOWMODE
+    {
+        data: new SlashCommandBuilder()
+           .setName('slowmode')
+           .setDescription('Activa modo lento en el canal')
+           .addIntegerOption(o => o.setName('segundos').setDescription('0-21600').setRequired(true).setMinValue(0).setMaxValue(21600))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+        async execute(interaction) {
+            const seconds = interaction.options.getInteger('segundos');
+            await interaction.channel.setRateLimitPerUser(seconds);
+            await interaction.reply(`✅ Slowmode puesto a ${seconds}s`);
+        }
+    },
+
+    // 12. LOCK
+    {
+        data: new SlashCommandBuilder()
+           .setName('lock')
+           .setDescription('Bloquea el canal')
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+        async execute(interaction) {
+            await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { SendMessages: false });
+            await interaction.reply('🔒 Canal bloqueado');
+        }
+    },
+
+    // 13. UNLOCK
+    {
+        data: new SlashCommandBuilder()
+           .setName('unlock')
+           .setDescription('Desbloquea el canal')
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+        async execute(interaction) {
+            await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { SendMessages: true });
+            await interaction.reply('🔓 Canal desbloqueado');
+        }
+    },
+
+    // 14. MUTE ROL
+    {
+        data: new SlashCommandBuilder()
+           .setName('mute')
+           .setDescription('Mutea a un usuario con rol')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            let muteRole = interaction.guild.roles.cache.find(r => r.name === 'Muted');
+            if (!muteRole) muteRole = await interaction.guild.roles.create({ name: 'Muted', permissions: [] });
+            await member.roles.add(muteRole);
+            await interaction.reply(`🔇 ${member} muteado`);
+        }
+    },
+
+    // 15. UNMUTE ROL
+    {
+        data: new SlashCommandBuilder()
+           .setName('unmute')
+           .setDescription('Quita el mute a un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            const muteRole = interaction.guild.roles.cache.find(r => r.name === 'Muted');
+            if (muteRole) await member.roles.remove(muteRole);
+            await interaction.reply(`🔊 ${member} desmuteado`);
+        }
+    },
+
+    // 16. NICKNAME
+    {
+        data: new SlashCommandBuilder()
+           .setName('nickname')
+           .setDescription('Cambia el nick de un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .addStringOption(o => o.setName('nick').setDescription('Nuevo nick').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            const nick = interaction.options.getString('nick');
+            await member.setNickname(nick);
+            await interaction.reply(`✅ Nick de ${member.user.tag} cambiado a \`${nick}\``);
+        }
+    },
+
+    // 17. RESETNICKNAME
+    {
+        data: new SlashCommandBuilder()
+           .setName('resetnickname')
+           .setDescription('Resetea el nick de un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            await member.setNickname(null);
+            await interaction.reply(`✅ Nick de ${member.user.tag} reseteado`);
+        }
+    },
+
+    // 18. HISTORY
+    {
+        data: new SlashCommandBuilder()
+           .setName('history')
+           .setDescription('Ver historial de moderación de un usuario')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true)),
+        async execute(interaction) {
+            const user = interaction.options.getUser('usuario');
+            const db = JSON.parse(require('fs').readFileSync('./database.json'));
+            const logs = db.logs[interaction.guild.id]?.filter(l => l.embed.description.includes(user.id)) || [];
+            await interaction.reply(`📜 ${logs.length} acciones encontradas para ${user}`);
+        }
+    },
+
+    // 19. MODLOG
+    {
+        data: new SlashCommandBuilder()
+           .setName('modlog')
+           .setDescription('Ver los últimos 10 logs de moderación')
+           .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        async execute(interaction) {
+            const db = JSON.parse(require('fs').readFileSync('./database.json'));
+            const logs = db.logs[interaction.guild.id]?.slice(-10) || [];
+            const embed = new EmbedBuilder().setTitle('📋 ModLog').setDescription(logs.length? 'Últimas 10 acciones' : 'Sin registros').setColor(0x2B2D31);
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+    },
+
+    // 20. VOICEKICK
+    {
+        data: new SlashCommandBuilder()
+           .setName('voicekick')
+           .setDescription('Saca a un usuario de un canal de voz')
+           .addUserOption(o => o.setName('usuario').setDescription('Usuario').setRequired(true))
+           .setDefaultMemberPermissions(PermissionFlagsBits.MoveMembers),
+        async execute(interaction) {
+            const member = interaction.options.getMember('usuario');
+            if (!member.voice.channel) return interaction.reply({ content: '❌ Ese usuario no está en voz', ephemeral: true });
+            await member.voice.disconnect();
+            await interaction.reply(`✅ ${member} sacado de voz`);
+        }
+    }
+];
