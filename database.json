@@ -1,6 +1,24 @@
 {
+  "automod": {},
+  "logs": {},
   "economia": {},
+  "tienda": {},
+  "inventarios": {},
   "niveles": {},
-  "servidores": {},
-  "usuarios": {}
+  "logros": {},
+  "recompensas": {},
+  "premium": {
+    "usuarios": {},
+    "servidores": {},
+    "configuracion": {
+      "activado": true
+    }
+  },
+  "estadisticas": {},
+  "archivos": {},
+  "privacidad": {},
+  "tickets": {},
+  "seguridad": {},
+  "servidor": {},
+  "musica": {}
 }
