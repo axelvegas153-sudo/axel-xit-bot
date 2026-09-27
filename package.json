@@ -1,20 +1,12 @@
 {
   "name": "dark-ff-v1",
   "version": "1.0.0",
-  "description": "Bot profesional Discord DARK FF V1",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "engines": {
-    "node": ">=22.0.0"
-  },
+  "scripts": { "start": "node index.js" },
   "dependencies": {
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "axios": "^1.7.2",
-    "@discordjs/voice": "^0.16.1",
-    "discord-player": "^6.8.4"
+    "ms": "^2.1.3"
   }
 }
